@@ -123,8 +123,8 @@ export class DatasetsService {
 
         rows.push({
           Course_ID: thread.course.code || thread.course.id,
-          Lecturer_ID: thread.course.lecturer?.email || thread.course.lecturerId,
-          Student_ID: student.email || student.id,
+          Lecturer_ID: thread.course.lecturerId,
+          Student_ID: student.id,
           Lecturer_Question: questionText,
           Student_Answer: studentAnswerMsg ? this.cleanText(studentAnswerMsg.body) : '',
           Lecturer_Feedback: feedbackMsg ? this.cleanText(feedbackMsg.body) : '',

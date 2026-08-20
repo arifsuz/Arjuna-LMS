@@ -187,6 +187,13 @@ export const opinions = {
 export const datasets = {
   getSummary: () => request("/admin/dataset/summary"),
 
+  getPreview: (courseId?: string) => {
+    const params = new URLSearchParams();
+    if (courseId) params.append("courseId", courseId);
+    params.append("format", "json");
+    return request<{ data: any[] }>(`/admin/dataset/export?${params.toString()}`);
+  },
+
   exportUrl: (courseId?: string, format: "csv" | "json" = "csv") => {
     const params = new URLSearchParams();
     if (courseId) params.append("courseId", courseId);
