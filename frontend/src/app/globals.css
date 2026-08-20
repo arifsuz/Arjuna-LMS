@@ -1,60 +1,266 @@
 @import "tailwindcss";
 
-/* ═══ ARJUNA LMS Design Tokens (Tailwind v4) ═══ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ═══ ARJUNA LMS Official Brand Palette Tokens (Tailwind v4) ═══ */
 @theme {
-  --color-primary-50: #f0f6fe;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #2563eb;
-  --color-primary-600: #1d4ed8;
-  --color-primary-700: #1e40af;
-  --color-primary-800: #1e3a8a;
-  --color-primary-900: #172554;
+  --font-sans: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  --color-teal-50: #f0fdf9;
-  --color-teal-100: #ccfbf1;
-  --color-teal-200: #99f6e4;
-  --color-teal-300: #5eead4;
-  --color-teal-400: #2dd4bf;
-  --color-teal-500: #0d9488;
-  --color-teal-600: #0f766e;
+  /* Official Brand Colors (from Brand Guide) */
+  --color-arjuna-navy: #0A3266;
+  --color-arjuna-gold: #C9A05C;
+  --color-arjuna-ivory: #FBF8F3;
 
-  --color-amber-50: #fffbeb;
-  --color-amber-100: #fef3c7;
-  --color-amber-200: #fde68a;
-  --color-amber-400: #fbbf24;
-  --color-amber-500: #f59e0b;
-  --color-amber-600: #d97706;
+  /* Navy Shades (Structure, Night Canvas, Brand Deep Royal) */
+  --color-navy-950: #030d1d;
+  --color-navy-900: #061a3b;
+  --color-navy-850: #082450;
+  --color-navy-800: #0A3266;
+  --color-navy-700: #124687;
+  --color-navy-600: #1b5ba8;
+  --color-navy-500: #2974cc;
+  --color-navy-400: #5092e3;
+  --color-navy-300: #8bb8f0;
+  --color-navy-200: #c2daf8;
+  --color-navy-100: #e5f0fc;
 
-  --color-danger-50: #fef2f2;
-  --color-danger-100: #fee2e2;
-  --color-danger-400: #f87171;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
+  /* Warm Gold Shades (Arrows, Highlights, Radiant Accents) */
+  --color-gold-800: #73531b;
+  --color-gold-700: #8c6828;
+  --color-gold-600: #ab8338;
+  --color-gold-500: #C9A05C;
+  --color-gold-400: #dbb779;
+  --color-gold-300: #ebd09e;
+  --color-gold-200: #f5e4c4;
+  --color-gold-100: #faf2e3;
 
-  --color-success-50: #f0fdf4;
-  --color-success-100: #dcfce7;
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
+  /* Ivory / Textured White Shades (Day Canvas, Inverted Dark Text) */
+  --color-ivory-50: #FBF8F3;
+  --color-ivory-100: #f5efe3;
+  --color-ivory-200: #eae0ce;
+  --color-ivory-300: #ded0b7;
+  --color-ivory-400: #cebb99;
 }
 
-/* ═══ Global Base Styles ═══ */
+/* ═══ Global Adaptive Base Styles ═══ */
 :root {
   color-scheme: dark;
 }
 
+html.light {
+  color-scheme: light;
+}
+
 html, body {
   min-height: 100vh;
-  background-color: #070c18;
-  color: #f0f4fc;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* ─── Dark Mode (Latar Biru Tua #061a3b / #0A3266, Teks Putih Gading #FBF8F3, Aksen Emas #C9A05C) ─── */
+html.dark body, body {
+  background: radial-gradient(ellipse 80% 80% at 50% -20%, #0A3266 0%, #061a3b 60%, #030d1d 100%);
+  background-attachment: fixed;
+  color: #FBF8F3;
+}
+
+/* ─── Light Mode (Latar Putih Gading #FBF8F3, Teks Biru Tua #0A3266, Aksen Emas #C9A05C) ─── */
+html.light body {
+  background: radial-gradient(ellipse 80% 80% at 50% -20%, #ffffff 0%, #FBF8F3 60%, #f5efe3 100%);
+  background-attachment: fixed;
+  color: #0A3266;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+}
+
+/* ═══ Glassmorphism Custom Utilities (Color Swapped & Adaptive) ═══ */
+
+/* ── Glass Panel ── */
+.glass-panel {
+  background: rgba(10, 50, 102, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(201, 160, 92, 0.28);
+  border-top: 1px solid rgba(251, 248, 243, 0.3);
+  box-shadow: 0 16px 40px 0 rgba(3, 13, 29, 0.55);
+  transition: all 0.3s ease;
+}
+
+html.light .glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(10, 50, 102, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 14px 38px 0 rgba(10, 50, 102, 0.08);
+}
+
+/* ── Glass Card ── */
+.glass-card {
+  background: rgba(8, 36, 80, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(251, 248, 243, 0.1);
+  border-top: 1px solid rgba(201, 160, 92, 0.35);
+  box-shadow: 0 8px 28px -2px rgba(3, 13, 29, 0.45);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(10, 50, 102, 0.75);
+  border-color: rgba(201, 160, 92, 0.6);
+  box-shadow: 0 16px 44px -2px rgba(201, 160, 92, 0.25);
+  transform: translateY(-2px);
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(10, 50, 102, 0.1);
+  border-top: 1px solid rgba(201, 160, 92, 0.4);
+  box-shadow: 0 8px 24px -2px rgba(10, 50, 102, 0.06);
+}
+
+html.light .glass-card:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(201, 160, 92, 0.65);
+  box-shadow: 0 16px 40px -2px rgba(10, 50, 102, 0.14);
+}
+
+/* ── Glass Card Static ── */
+.glass-card-static {
+  background: rgba(8, 36, 80, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(251, 248, 243, 0.1);
+  border-top: 1px solid rgba(201, 160, 92, 0.3);
+  box-shadow: 0 8px 28px -2px rgba(3, 13, 29, 0.45);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+html.light .glass-card-static {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(10, 50, 102, 0.1);
+  border-top: 1px solid rgba(201, 160, 92, 0.35);
+  box-shadow: 0 8px 24px -2px rgba(10, 50, 102, 0.06);
+}
+
+/* ── Glass Input ── */
+.glass-input {
+  background: rgba(4, 19, 43, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 160, 92, 0.35);
+  color: #FBF8F3;
+  transition: all 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: rgba(235, 208, 158, 0.5);
+}
+
+.glass-input:focus {
+  border-color: #C9A05C;
+  box-shadow: 0 0 0 3px rgba(201, 160, 92, 0.25), 0 0 20px rgba(201, 160, 92, 0.2);
+  outline: none;
+  background: rgba(6, 26, 59, 0.95);
+}
+
+html.light .glass-input {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(10, 50, 102, 0.25);
+  color: #0A3266;
+}
+
+html.light .glass-input::placeholder {
+  color: rgba(100, 116, 139, 0.7);
+}
+
+html.light .glass-input:focus {
+  border-color: #0A3266;
+  box-shadow: 0 0 0 3px rgba(10, 50, 102, 0.15), 0 0 20px rgba(10, 50, 102, 0.1);
+  background: #ffffff;
+}
+
+/* ── Primary Action Button (Swaps role: In Dark Mode, Golden Highlight; In Light Mode, Navy Majesty) ── */
+.glass-button-primary {
+  background: linear-gradient(135deg, #b38841 0%, #C9A05C 50%, #dbb779 100%);
+  border: 1px solid rgba(251, 248, 243, 0.4);
+  color: #04132b;
+  font-weight: 700;
+  box-shadow: 0 6px 24px rgba(201, 160, 92, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 30px rgba(201, 160, 92, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.glass-button-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+html.light .glass-button-primary {
+  background: linear-gradient(135deg, #0A3266 0%, #124687 50%, #08264d 100%);
+  border: 1px solid rgba(201, 160, 92, 0.4);
+  color: #FBF8F3;
+  box-shadow: 0 6px 24px rgba(10, 50, 102, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+html.light .glass-button-primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+  border-color: #C9A05C;
+  box-shadow: 0 8px 30px rgba(10, 50, 102, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* ── Gold Accent Button ── */
+.glass-button-gold {
+  background: linear-gradient(135deg, #b38841 0%, #C9A05C 50%, #9e7939 100%);
+  border: 1px solid rgba(251, 248, 243, 0.4);
+  color: #04132b;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(201, 160, 92, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button-gold:hover:not(:disabled) {
+  filter: brightness(1.12);
+  box-shadow: 0 6px 26px rgba(201, 160, 92, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+/* ── Secondary Glass Button ── */
+.glass-button-secondary {
+  background: rgba(10, 50, 102, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 160, 92, 0.28);
+  color: #FBF8F3;
+  transition: all 0.2s ease;
+}
+
+.glass-button-secondary:hover:not(:disabled) {
+  background: rgba(10, 50, 102, 0.7);
+  border-color: #C9A05C;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+html.light .glass-button-secondary {
+  background: rgba(10, 50, 102, 0.06);
+  border: 1px solid rgba(10, 50, 102, 0.16);
+  color: #0A3266;
+}
+
+html.light .glass-button-secondary:hover:not(:disabled) {
+  background: rgba(10, 50, 102, 0.12);
+  border-color: #C9A05C;
+  color: #0A3266;
 }
 
 /* ═══ Scrollbar Styling ═══ */
@@ -63,31 +269,25 @@ h1, h2, h3, h4, h5, h6 {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0e1726;
+  background: rgba(6, 26, 59, 0.6);
+}
+html.light ::-webkit-scrollbar-track {
+  background: rgba(245, 239, 227, 0.8);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2e3e5c;
+  background: rgba(201, 160, 92, 0.4);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a5d80;
+  background: rgba(201, 160, 92, 0.7);
 }
 
-/* ═══ Keyframe Animations ═══ */
+/* ═══ Animations ═══ */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulseSoft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
 .animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-pulse-soft {
-  animation: pulseSoft 2s ease-in-out infinite;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
