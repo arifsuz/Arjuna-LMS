@@ -19,6 +19,7 @@ import {
   Pencil,
   Trash2,
   ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 
 export default function AdminCoursesPage() {
@@ -40,7 +41,7 @@ export default function AdminCoursesPage() {
     code: "",
     name: "",
     lecturerId: "",
-    term: "2026/2027-Ganjil",
+    term: "2026/2027 Ganjil",
   });
   const [creating, setCreating] = useState(false);
 
@@ -91,7 +92,7 @@ export default function AdminCoursesPage() {
       console.error(err);
       setFeedback({
         type: "error",
-        message: err.message || "Gagal memuat data kelas",
+        message: err.message || "Gagal memuat data kelas perkuliahan",
       });
     } finally {
       setLoading(false);
@@ -106,14 +107,14 @@ export default function AdminCoursesPage() {
       await coursesApi.create(createForm);
       setFeedback({
         type: "success",
-        message: `Kelas ${createForm.code} - ${createForm.name} berhasil dibuat.`,
+        message: `Mata kuliah ${createForm.code} (${createForm.name}) berhasil dibuat.`,
       });
       setShowCreate(false);
       setCreateForm({
         code: "",
         name: "",
         lecturerId: "",
-        term: "2026/2027-Ganjil",
+        term: "2026/2027 Ganjil",
       });
       loadData();
     } catch (err: any) {
@@ -148,7 +149,7 @@ export default function AdminCoursesPage() {
       await coursesApi.update(editingCourse.id, editForm);
       setFeedback({
         type: "success",
-        message: `Kelas ${editForm.code} - ${editForm.name} berhasil diperbarui.`,
+        message: `Data kelas ${editForm.code} (${editForm.name}) berhasil diperbarui.`,
       });
       setShowEditModal(false);
       setEditingCourse(null);
@@ -157,7 +158,7 @@ export default function AdminCoursesPage() {
       console.error(err);
       setFeedback({
         type: "error",
-        message: err.message || "Gagal memperbarui kelas",
+        message: err.message || "Gagal memperbarui data kelas",
       });
     } finally {
       setUpdating(false);
@@ -178,7 +179,7 @@ export default function AdminCoursesPage() {
       await coursesApi.delete(courseToDelete.id);
       setFeedback({
         type: "success",
-        message: `Kelas ${courseToDelete.code} - ${courseToDelete.name} berhasil dihapus.`,
+        message: `Kelas ${courseToDelete.code} (${courseToDelete.name}) berhasil dihapus.`,
       });
       setShowDeleteModal(false);
       setCourseToDelete(null);
@@ -187,7 +188,7 @@ export default function AdminCoursesPage() {
       console.error(err);
       setFeedback({
         type: "error",
-        message: err.message || "Gagal menghapus kelas",
+        message: err.message || "Gagal menghapus kelas perkuliahan",
       });
     } finally {
       setDeleting(false);
@@ -202,7 +203,7 @@ export default function AdminCoursesPage() {
       const res = await coursesApi.enroll(showEnroll, selectedStudents);
       setFeedback({
         type: "success",
-        message: res.message || `${selectedStudents.length} mahasiswa berhasil di-enroll.`,
+        message: res.message || `${selectedStudents.length} mahasiswa berhasil didaftarkan ke kelas.`,
       });
       setShowEnroll(null);
       setSelectedStudents([]);
@@ -221,44 +222,53 @@ export default function AdminCoursesPage() {
   if (!currentUser || currentUser.role !== "ADMIN") return null;
 
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Manajemen Kelas</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Buat kelas perkuliahan, edit informasi, tentukan dosen pengampu, dan enroll mahasiswa
-          </p>
+    <div className="space-y-8">
+      {/* Header Banner */}
+      <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A05C]/40 bg-[#C9A05C]/10 px-3 py-1 text-xs font-semibold text-[#8c6828] dark:text-[#dbb779] backdrop-blur-md mb-3">
+              <Sparkles className="h-3.5 w-3.5 text-[#C9A05C]" />
+              <span>Manajemen Akademik</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A3266] dark:text-white">
+              Kelola Kelas Perkuliahan
+            </h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+              Buat kelas baru, tentukan dosen pengampu, atur periode perkuliahan, dan daftarkan mahasiswa.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="glass-button-primary flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-bold text-white shadow-xl"
+          >
+            <Plus className="h-4 w-4 text-[#C9A05C]" />
+            <span>Tambah Kelas Baru</span>
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:brightness-110 active:scale-95"
-        >
-          <Plus className="h-4 w-4" />
-          Buat Kelas Baru
-        </button>
       </div>
 
       {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`animate-fade-in mb-6 flex items-center justify-between rounded-xl border p-4 text-sm ${
+          className={`animate-fade-in flex items-center justify-between rounded-2xl border p-4 text-xs font-semibold backdrop-blur-md ${
             feedback.type === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-              : "border-red-500/30 bg-red-500/10 text-red-300"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300"
           }`}
         >
           <div className="flex items-center gap-3">
             {feedback.type === "success" ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+              <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
             )}
             <span>{feedback.message}</span>
           </div>
           <button
             onClick={() => setFeedback(null)}
-            className="text-slate-400 hover:text-slate-200"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -269,25 +279,26 @@ export default function AdminCoursesPage() {
       {showCreate && (
         <form
           onSubmit={handleCreate}
-          className="animate-fade-in mb-8 rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-xl"
+          className="glass-panel animate-fade-in relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl border-[#C9A05C]/40"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Plus className="h-5 w-5 text-blue-400" />
-              Tambah Kelas Perkuliahan Baru
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-[#0A3266] dark:text-white flex items-center gap-2.5">
+              <Plus className="h-5 w-5 text-[#C9A05C]" />
+              <span>Tambah Kelas Perkuliahan Baru</span>
             </h3>
             <button
               type="button"
               onClick={() => setShowCreate(false)}
-              className="text-slate-400 hover:text-slate-200"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
-                Kode Kelas
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Kode Mata Kuliah
               </label>
               <input
                 value={createForm.code}
@@ -296,11 +307,12 @@ export default function AdminCoursesPage() {
                 }
                 placeholder="Contoh: IF101"
                 required
-                className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
               />
             </div>
+
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Nama Mata Kuliah
               </label>
               <input
@@ -310,11 +322,12 @@ export default function AdminCoursesPage() {
                 }
                 placeholder="Contoh: Pemrograman Dasar"
                 required
-                className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
               />
             </div>
+
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Dosen Pengampu
               </label>
               <select
@@ -323,18 +336,19 @@ export default function AdminCoursesPage() {
                   setCreateForm({ ...createForm, lecturerId: e.target.value })
                 }
                 required
-                className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="glass-input w-full rounded-2xl px-4 py-3 text-sm cursor-pointer"
               >
-                <option value="">Pilih Dosen Pengampu</option>
+                <option value="" className="bg-[#FBF8F3] dark:bg-[#051329] text-slate-500">Pilih Dosen Pengampu</option>
                 {lecturers.map((l) => (
-                  <option key={l.id} value={l.id}>
+                  <option key={l.id} value={l.id} className="bg-[#FBF8F3] dark:bg-[#051329] text-[#0A3266] dark:text-white">
                     {l.name} ({l.email})
                   </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Periode / Semester
               </label>
               <input
@@ -342,26 +356,28 @@ export default function AdminCoursesPage() {
                 onChange={(e) =>
                   setCreateForm({ ...createForm, term: e.target.value })
                 }
+                placeholder="Contoh: 2026/2027 Ganjil"
                 required
-                className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
               />
             </div>
           </div>
+
           <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={() => setShowCreate(false)}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200"
+              className="glass-button-secondary rounded-xl px-4 py-2.5 text-xs font-semibold"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={creating}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-50"
+              className="glass-button-primary flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50"
             >
-              {creating && <Loader2 className="h-4 w-4 animate-spin" />}
-              {creating ? "Menyimpan..." : "Simpan Kelas"}
+              {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <span>{creating ? "Menyimpan..." : "Simpan Kelas Baru"}</span>
             </button>
           </div>
         </form>
@@ -369,80 +385,84 @@ export default function AdminCoursesPage() {
 
       {/* Course Cards List */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
+        <div className="glass-card-static flex flex-col items-center justify-center py-20 rounded-3xl gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-[#C9A05C]" />
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Memuat data kelas perkuliahan...</p>
         </div>
       ) : (
         <div className="space-y-4">
           {courseList.map((course) => (
             <div
               key={course.id}
-              className="rounded-2xl border border-slate-800 bg-[#0e1726]/90 p-6 shadow-xl"
+              className="glass-panel relative overflow-hidden rounded-3xl p-6 transition-all duration-200"
             >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="mb-2 flex items-center gap-2.5">
-                    <span className="rounded-lg bg-blue-600/20 px-2.5 py-1 text-xs font-bold text-blue-400 border border-blue-500/30">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="inline-flex items-center rounded-xl border border-[#0A3266]/25 dark:border-[#C9A05C]/40 bg-[#0A3266]/10 dark:bg-[#0A3266]/30 px-3 py-1 text-xs font-bold text-[#0A3266] dark:text-[#dbb779]">
                       {course.code}
                     </span>
-                    <h3 className="text-lg font-bold text-white">{course.name}</h3>
+                    <h3 className="text-lg font-bold text-[#0A3266] dark:text-white">{course.name}</h3>
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Dosen: <span className="text-slate-200 font-medium">{course.lecturer?.name}</span> · Semester: {course.term}
-                  </p>
-                  <div className="mt-3 flex gap-4 text-xs text-slate-400">
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                    <span>Dosen:</span>
+                    <span className="text-[#0A3266] dark:text-[#dbb779] font-bold">{course.lecturer?.name || "Belum ditentukan"}</span>
+                    <span>•</span>
+                    <span>Semester:</span>
+                    <span className="text-slate-700 dark:text-slate-200">{course.term}</span>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-slate-500" />
-                      {course._count?.enrollments || 0} Mahasiswa
+                      <Users className="h-3.5 w-3.5 text-[#0A3266] dark:text-[#C9A05C]" />
+                      <span>{course._count?.enrollments || 0} Mahasiswa Terdaftar</span>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <GraduationCap className="h-3.5 w-3.5 text-slate-500" />
-                      {course._count?.threads || 0} Thread Diskusi
+                      <GraduationCap className="h-3.5 w-3.5 text-[#C9A05C]" />
+                      <span>{course._count?.threads || 0} Topik Diskusi</span>
                     </span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Edit Course Button */}
                   <button
                     onClick={() => openEditModal(course)}
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400"
+                    className="glass-button-secondary flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
                     title="Edit Data Kelas"
                   >
-                    <Pencil className="h-3.5 w-3.5 text-blue-400" />
-                    Edit
+                    <Pencil className="h-3.5 w-3.5 text-[#C9A05C]" />
+                    <span>Edit</span>
                   </button>
 
-                  {/* Delete Course Button */}
                   <button
                     onClick={() => openDeleteModal(course)}
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                    className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-600 dark:text-red-300 hover:bg-red-500/20"
                     title="Hapus Kelas"
                   >
-                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                    Hapus
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Hapus</span>
                   </button>
 
-                  {/* Enroll Students Button */}
                   <button
                     onClick={() =>
                       setShowEnroll(showEnroll === course.id ? null : course.id)
                     }
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400"
+                    className="glass-button-primary flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white"
                   >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    Enroll Mahasiswa
+                    <UserPlus className="h-3.5 w-3.5 text-[#C9A05C]" />
+                    <span>Daftarkan Mahasiswa</span>
                   </button>
                 </div>
               </div>
 
               {/* Interactive Enroll Panel */}
               {showEnroll === course.id && (
-                <div className="animate-fade-in mt-5 rounded-xl border border-slate-800 bg-[#070c18] p-5">
-                  <p className="mb-3 text-xs font-bold text-slate-300">
+                <div className="animate-fade-in mt-6 rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-5 backdrop-blur-md">
+                  <p className="mb-3 text-xs font-bold text-[#0A3266] dark:text-slate-200">
                     Pilih mahasiswa yang akan didaftarkan ke kelas ini:
                   </p>
-                  <div className="mb-4 flex flex-wrap gap-2">
+                  <div className="mb-4 flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
                     {students.map((s) => {
                       const isSelected = selectedStudents.includes(s.id);
                       return (
@@ -458,21 +478,21 @@ export default function AdminCoursesPage() {
                           }
                           className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
                             isSelected
-                              ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                              : "border border-slate-700/80 bg-slate-800/70 text-slate-300 hover:border-slate-600"
+                              ? "bg-[#0A3266] dark:bg-[#C9A05C] text-white dark:text-[#051329] shadow-md shadow-[#0A3266]/20 font-semibold"
+                              : "border border-black/10 dark:border-white/[0.08] bg-black/5 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:border-[#C9A05C]/40"
                           }`}
                         >
                           {isSelected && <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {s.name}
+                          <span>{s.name}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <div className="flex justify-end gap-3">
+                  <div className="flex justify-end gap-3 border-t border-black/10 dark:border-white/[0.06] pt-3">
                     <button
                       type="button"
                       onClick={() => setShowEnroll(null)}
-                      className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-200"
+                      className="glass-button-secondary rounded-xl px-4 py-2 text-xs font-semibold"
                     >
                       Tutup
                     </button>
@@ -480,10 +500,10 @@ export default function AdminCoursesPage() {
                       type="button"
                       onClick={handleEnroll}
                       disabled={selectedStudents.length === 0 || enrolling}
-                      className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-500 disabled:opacity-40"
+                      className="glass-button-primary flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
                     >
                       {enrolling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      Daftarkan ({selectedStudents.length}) Mahasiswa
+                      <span>Daftarkan ({selectedStudents.length}) Mahasiswa</span>
                     </button>
                   </div>
                 </div>
@@ -492,9 +512,9 @@ export default function AdminCoursesPage() {
           ))}
 
           {courseList.length === 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-[#0e1726]/60 p-12 text-center">
-              <GraduationCap className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-              <p className="text-sm font-medium text-slate-400">
+            <div className="glass-panel rounded-3xl p-12 text-center">
+              <GraduationCap className="mx-auto mb-3 h-10 w-10 text-slate-400 dark:text-slate-500" />
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Belum ada kelas perkuliahan yang dibuat
               </p>
             </div>
@@ -504,27 +524,27 @@ export default function AdminCoursesPage() {
 
       {/* Modal: Edit Data Kelas */}
       {showEditModal && editingCourse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="animate-fade-in w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Pencil className="h-5 w-5 text-blue-400" />
-                Edit Kelas Perkuliahan
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xl p-4">
+          <div className="glass-panel animate-fade-in w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border-[#C9A05C]/40">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-[#0A3266] dark:text-white flex items-center gap-2.5">
+                <Pencil className="h-5 w-5 text-[#C9A05C]" />
+                <span>Edit Data Kelas Perkuliahan</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-300">
-                    Kode Kelas
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Kode Mata Kuliah
                   </label>
                   <input
                     type="text"
@@ -533,11 +553,11 @@ export default function AdminCoursesPage() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, code: e.target.value })
                     }
-                    className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Nama Mata Kuliah
                   </label>
                   <input
@@ -547,13 +567,13 @@ export default function AdminCoursesPage() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, name: e.target.value })
                     }
-                    className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Dosen Pengampu
                 </label>
                 <select
@@ -562,11 +582,11 @@ export default function AdminCoursesPage() {
                     setEditForm({ ...editForm, lecturerId: e.target.value })
                   }
                   required
-                  className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="glass-input w-full rounded-2xl px-4 py-3 text-sm cursor-pointer"
                 >
-                  <option value="">Pilih Dosen Pengampu</option>
+                  <option value="" className="bg-[#FBF8F3] dark:bg-[#051329] text-slate-500">Pilih Dosen Pengampu</option>
                   {lecturers.map((l) => (
-                    <option key={l.id} value={l.id}>
+                    <option key={l.id} value={l.id} className="bg-[#FBF8F3] dark:bg-[#051329] text-[#0A3266] dark:text-white">
                       {l.name} ({l.email})
                     </option>
                   ))}
@@ -574,7 +594,7 @@ export default function AdminCoursesPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Periode / Semester
                 </label>
                 <input
@@ -584,25 +604,25 @@ export default function AdminCoursesPage() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, term: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="glass-input w-full rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
                 />
               </div>
 
-              <div className="mt-6 flex justify-end gap-3 pt-2">
+              <div className="mt-6 flex justify-end gap-3 pt-2 border-t border-black/10 dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200"
+                  className="glass-button-secondary rounded-xl px-4 py-2.5 text-xs font-semibold"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={updating}
-                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-50"
+                  className="glass-button-primary flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50"
                 >
-                  {updating && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {updating ? "Menyimpan..." : "Simpan Perubahan"}
+                  {updating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{updating ? "Menyimpan..." : "Simpan Perubahan"}</span>
                 </button>
               </div>
             </form>
@@ -612,28 +632,28 @@ export default function AdminCoursesPage() {
 
       {/* Modal: Konfirmasi Hapus Kelas */}
       {showDeleteModal && courseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="animate-fade-in w-full max-w-md rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-2xl">
-            <div className="mb-4 flex items-center gap-3 text-red-400">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20">
-                <ShieldAlert className="h-5 w-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xl p-4">
+          <div className="glass-panel animate-fade-in w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border-red-500/40">
+            <div className="mb-4 flex items-center gap-3 text-red-500">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/15 border border-red-500/30">
+                <ShieldAlert className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Hapus Kelas Perkuliahan</h3>
-                <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan</p>
+                <h3 className="text-base font-bold text-[#0A3266] dark:text-white">Hapus Kelas Perkuliahan</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Tindakan ini permanen</p>
               </div>
             </div>
 
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
               Apakah Anda yakin ingin menghapus kelas{" "}
-              <strong className="text-white font-semibold">
-                {courseToDelete.code} - {courseToDelete.name}
+              <strong className="text-[#0A3266] dark:text-white font-bold">
+                {courseToDelete.code} ({courseToDelete.name})
               </strong>
               ?
             </p>
 
-            <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300 leading-relaxed">
-              Semua data thread diskusi, pesan balasan, opini, serta data enrollment mahasiswa yang terdaftar di kelas ini akan dihapus secara permanen.
+            <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs text-red-600 dark:text-red-300 leading-relaxed">
+              Seluruh thread diskusi, jawaban mahasiswa, catatan refleksi, dan data pendaftaran mahasiswa pada kelas ini akan dihapus secara permanen.
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
@@ -641,7 +661,7 @@ export default function AdminCoursesPage() {
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={deleting}
-                className="rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200"
+                className="glass-button-secondary rounded-xl px-4 py-2.5 text-xs font-semibold"
               >
                 Batal
               </button>
@@ -649,10 +669,10 @@ export default function AdminCoursesPage() {
                 type="button"
                 onClick={handleDeleteConfirm}
                 disabled={deleting}
-                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500 active:scale-95 disabled:opacity-50"
               >
-                {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {deleting ? "Menghapus..." : "Ya, Hapus Kelas"}
+                {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>{deleting ? "Menghapus..." : "Ya, Hapus Kelas"}</span>
               </button>
             </div>
           </div>

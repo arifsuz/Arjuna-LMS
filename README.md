@@ -105,15 +105,19 @@ arjuna-lms/
 ├── frontend/                    # Frontend Web Client (Next.js 16 App Router)
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── page.tsx         # Halaman Beranda / Landing Page Interaktif
 │   │   │   ├── dashboard/       # Dashboard Utama
-│   │   │   │   ├── admin/       # Panel Peneliti: Users, Courses, Dataset Export
+│   │   │   │   ├── admin/       # Panel Peneliti: Users, Courses, Dataset Export (15 Kolom)
 │   │   │   │   └── courses/     # Tampilan Kelas & Thread Diskusi
 │   │   │   ├── login/           # Halaman Login
-│   │   │   ├── globals.css      # Custom Design Tokens & TailwindCSS
+│   │   │   ├── globals.css      # Custom Design Tokens & TailwindCSS (Dark/Light Palette)
 │   │   │   └── layout.tsx       # Root Layout
+│   │   ├── components/
+│   │   │   └── theme-toggle.tsx # Komponen Pengalih Tema (Terang / Gelap / Sistem)
 │   │   └── lib/
 │   │       ├── api.ts           # Axios / Fetch API Client Terstruktur
 │   │       ├── auth-context.tsx # Autentikasi Global State
+│   │       ├── theme-context.tsx# Context Penyedia Tema Adaptif
 │   │       └── socket.ts        # Socket.IO Real-time Connection Manager
 │   ├── Dockerfile               # Multi-stage Docker build frontend
 │   └── package.json
