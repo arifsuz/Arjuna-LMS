@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # ─── 1. PostgreSQL Database ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: arjuna-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-arjuna}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arjuna_prod_secure_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-arjuna_lms}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-arjuna} -d ${POSTGRES_DB:-arjuna_lms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arjuna-network
+
+  # ─── 2. Redis Cache & Pub/Sub ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: arjuna-redis-prod
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arjuna-network
+
+  # ─── 3. NestJS Backend API & WebSocket Gateway ───────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: arjuna-backend-prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-arjuna}:${POSTGRES_PASSWORD:-arjuna_prod_secure_2026}@postgres:5432/${POSTGRES_DB:-arjuna_lms}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-arjuna-access-secret-prod-change-me-32chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-arjuna-refresh-secret-prod-change-me-32chars}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://lms.domainanda.com,http://localhost:3000}
+    ports:
+      - "4000:4000"
+    networks:
+      - arjuna-network
+
+  # ─── 4. Next.js 16 Frontend App ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.domainanda.com/api}
+    container_name: arjuna-frontend-prod
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.domainanda.com/api}
+    ports:
+      - "3000:3000"
+    networks:
+      - arjuna-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  arjuna-network:
+    driver: bridge
