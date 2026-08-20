@@ -1,0 +1,202 @@
+// Prisma Schema for ARJUNA LMS
+// Sesuai PRD: User, Course, Enrollment, Thread, ThreadMessage, Opinion, DatasetLabel, AuditLog
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  LECTURER
+  STUDENT
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageType {
+  QUESTION
+  ANSWER
+  FEEDBACK
+  REACTION
+}
+
+enum LabelSource {
+  MANUAL
+  MODEL
+}
+
+// ─── User ─────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           Role
+  createdByAdmin String?  @map("created_by_admin_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdBy       User?           @relation("UserCreatedBy", fields: [createdByAdmin], references: [id])
+  createdUsers    User[]          @relation("UserCreatedBy")
+  taughtCourses   Course[]        @relation("CourseLecturer")
+  enrollments     Enrollment[]
+  initiatedThreads Thread[]       @relation("ThreadInitiator")
+  messages        ThreadMessage[]
+  opinions        Opinion[]
+  datasetLabels   DatasetLabel[]  @relation("LabeledByUser")
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// ─── Course ───────────────────────────────────────────────────────────
+
+model Course {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  lecturerId String   @map("lecturer_id")
+  term       String   // e.g., "2026/2027-Ganjil"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  lecturer    User         @relation("CourseLecturer", fields: [lecturerId], references: [id])
+  enrollments Enrollment[]
+  threads     Thread[]
+
+  @@map("courses")
+}
+
+// ─── Enrollment ───────────────────────────────────────────────────────
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  courseId   String   @map("course_id")
+  studentId  String   @map("student_id")
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+
+  // Relations
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@map("enrollments")
+}
+
+// ─── Thread ───────────────────────────────────────────────────────────
+
+model Thread {
+  id            String       @id @default(cuid())
+  courseId       String       @map("course_id")
+  initiatorRole  Role         @map("initiator_role")
+  initiatorId    String       @map("initiator_id")
+  title         String       @default("")
+  status        ThreadStatus @default(OPEN)
+  openedAt      DateTime     @default(now()) @map("opened_at")
+  closedAt      DateTime?    @map("closed_at")
+
+  // Relations
+  course   Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  initiator User           @relation("ThreadInitiator", fields: [initiatorId], references: [id])
+  messages ThreadMessage[]
+  opinions Opinion[]
+  labels   DatasetLabel[]
+
+  @@index([courseId])
+  @@map("threads")
+}
+
+// ─── ThreadMessage ────────────────────────────────────────────────────
+
+model ThreadMessage {
+  id              String      @id @default(cuid())
+  threadId         String      @map("thread_id")
+  authorId         String      @map("author_id")
+  type            MessageType
+  body            String      // Rich text (HTML)
+  parentMessageId  String?     @map("parent_message_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  thread  Thread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author  User           @relation(fields: [authorId], references: [id])
+  parent  ThreadMessage? @relation("MessageParent", fields: [parentMessageId], references: [id])
+  replies ThreadMessage[] @relation("MessageParent")
+
+  @@index([threadId])
+  @@index([authorId])
+  @@map("thread_messages")
+}
+
+// ─── Opinion ──────────────────────────────────────────────────────────
+
+model Opinion {
+  id          String   @id @default(cuid())
+  threadId     String   @map("thread_id")
+  authorId     String   @map("author_id")
+  authorRole   Role     @map("author_role")
+  opinionText  String   @map("opinion_text")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@unique([threadId, authorId])
+  @@map("opinions")
+}
+
+// ─── DatasetLabel ─────────────────────────────────────────────────────
+
+model DatasetLabel {
+  id                 String      @id @default(cuid())
+  threadId            String      @map("thread_id")
+  qaRelevance        Float?      @map("qa_relevance")
+  afRelevance        Float?      @map("af_relevance")
+  feedbackNovelty    Float?      @map("feedback_novelty")
+  studentSentiment   String?     @map("student_sentiment")
+  studentEmotion     String?     @map("student_emotion")
+  lecturerSentiment  String?     @map("lecturer_sentiment")
+  lecturerEmotion    String?     @map("lecturer_emotion")
+  interactionQuality Float?      @map("interaction_quality")
+  labeledBy          String?     @map("labeled_by")
+  labeledAt          DateTime?   @map("labeled_at")
+  source             LabelSource @default(MANUAL)
+
+  // Relations
+  thread  Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  labeler User?  @relation("LabeledByUser", fields: [labeledBy], references: [id])
+
+  @@map("dataset_labels")
+}
+
+// ─── AuditLog ─────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId    String   @map("actor_id")
+  action    String   // e.g., "CREATE_THREAD", "POST_ANSWER", "BULK_IMPORT_USERS"
+  entity    String   // e.g., "Thread", "ThreadMessage", "User"
+  entityId   String   @map("entity_id")
+  meta      Json?    // Additional context
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
