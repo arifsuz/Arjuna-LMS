@@ -43,6 +43,11 @@ export class AdminCoursesController {
     return this.coursesService.update(id, dto);
   }
 
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    return this.coursesService.delete(id);
+  }
+
   @Post(':id/enroll')
   async enrollStudents(
     @Param('id') courseId: string,

@@ -141,6 +141,15 @@ export class CoursesService {
       throw new NotFoundException('Kelas tidak ditemukan');
     }
 
+    if (dto.code && dto.code !== course.code) {
+      const existing = await this.prisma.course.findUnique({
+        where: { code: dto.code },
+      });
+      if (existing) {
+        throw new ConflictException('Kode kelas sudah digunakan');
+      }
+    }
+
     if (dto.lecturerId) {
       const lecturer = await this.prisma.user.findUnique({
         where: { id: dto.lecturerId },
@@ -159,6 +168,19 @@ export class CoursesService {
         },
       },
     });
+  }
+
+  async delete(id: string) {
+    const course = await this.prisma.course.findUnique({ where: { id } });
+    if (!course) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    await this.prisma.course.delete({
+      where: { id },
+    });
+
+    return { message: 'Kelas berhasil dihapus' };
   }
 
   async enrollStudents(courseId: string, dto: EnrollStudentsDto) {

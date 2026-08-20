@@ -14,31 +14,67 @@ import {
   UserPlus,
   Loader2,
   CheckCircle2,
+  AlertCircle,
   X,
+  Pencil,
+  Trash2,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function AdminCoursesPage() {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [courseList, setCourseList] = useState<any[]>([]);
   const [lecturers, setLecturers] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Feedback Notification
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Create Modal state
   const [showCreate, setShowCreate] = useState(false);
-  const [showEnroll, setShowEnroll] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState({
+    code: "",
+    name: "",
+    lecturerId: "",
+    term: "2026/2027-Ganjil",
+  });
   const [creating, setCreating] = useState(false);
 
-  // Create form state
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [lecturerId, setLecturerId] = useState("");
-  const [term, setTerm] = useState("2026/2027-Ganjil");
+  // Edit Modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    code: "",
+    name: "",
+    lecturerId: "",
+    term: "",
+  });
+  const [updating, setUpdating] = useState(false);
+
+  // Delete Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Enroll state
+  const [showEnroll, setShowEnroll] = useState<string | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (feedback) {
+      const timer = setTimeout(() => setFeedback(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
 
   async function loadData() {
     setLoading(true);
@@ -51,51 +87,147 @@ export default function AdminCoursesPage() {
       setCourseList(Array.isArray(coursesData) ? coursesData : []);
       setLecturers(lecturersData.data || []);
       setStudents(studentsData.data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setFeedback({
+        type: "error",
+        message: err.message || "Gagal memuat data kelas",
+      });
     } finally {
       setLoading(false);
     }
   }
 
+  // Handle Create Course
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      await coursesApi.create({ code, name, lecturerId, term });
+      await coursesApi.create(createForm);
+      setFeedback({
+        type: "success",
+        message: `Kelas ${createForm.code} - ${createForm.name} berhasil dibuat.`,
+      });
       setShowCreate(false);
-      setCode("");
-      setName("");
-      setLecturerId("");
+      setCreateForm({
+        code: "",
+        name: "",
+        lecturerId: "",
+        term: "2026/2027-Ganjil",
+      });
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setFeedback({
+        type: "error",
+        message: err.message || "Gagal membuat kelas baru",
+      });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleEnroll = async () => {
-    if (!showEnroll || selectedStudents.length === 0) return;
+  // Open Edit Modal
+  const openEditModal = (course: any) => {
+    setEditingCourse(course);
+    setEditForm({
+      code: course.code,
+      name: course.name,
+      lecturerId: course.lecturerId || course.lecturer?.id || "",
+      term: course.term,
+    });
+    setShowEditModal(true);
+  };
+
+  // Handle Edit Course
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse) return;
+    setUpdating(true);
     try {
-      await coursesApi.enroll(showEnroll, selectedStudents);
-      setShowEnroll(null);
-      setSelectedStudents([]);
+      await coursesApi.update(editingCourse.id, editForm);
+      setFeedback({
+        type: "success",
+        message: `Kelas ${editForm.code} - ${editForm.name} berhasil diperbarui.`,
+      });
+      setShowEditModal(false);
+      setEditingCourse(null);
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setFeedback({
+        type: "error",
+        message: err.message || "Gagal memperbarui kelas",
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
-  if (!user || user.role !== "ADMIN") return null;
+  // Open Delete Modal
+  const openDeleteModal = (course: any) => {
+    setCourseToDelete(course);
+    setShowDeleteModal(true);
+  };
+
+  // Handle Delete Course
+  const handleDeleteConfirm = async () => {
+    if (!courseToDelete) return;
+    setDeleting(true);
+    try {
+      await coursesApi.delete(courseToDelete.id);
+      setFeedback({
+        type: "success",
+        message: `Kelas ${courseToDelete.code} - ${courseToDelete.name} berhasil dihapus.`,
+      });
+      setShowDeleteModal(false);
+      setCourseToDelete(null);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        type: "error",
+        message: err.message || "Gagal menghapus kelas",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Handle Enroll
+  const handleEnroll = async () => {
+    if (!showEnroll || selectedStudents.length === 0) return;
+    setEnrolling(true);
+    try {
+      const res = await coursesApi.enroll(showEnroll, selectedStudents);
+      setFeedback({
+        type: "success",
+        message: res.message || `${selectedStudents.length} mahasiswa berhasil di-enroll.`,
+      });
+      setShowEnroll(null);
+      setSelectedStudents([]);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        type: "error",
+        message: err.message || "Gagal mendaftarkan mahasiswa ke kelas",
+      });
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  if (!currentUser || currentUser.role !== "ADMIN") return null;
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Manajemen Kelas</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Buat kelas perkuliahan, tentukan dosen pengampu, dan enroll mahasiswa
+            Buat kelas perkuliahan, edit informasi, tentukan dosen pengampu, dan enroll mahasiswa
           </p>
         </div>
         <button
@@ -107,6 +239,32 @@ export default function AdminCoursesPage() {
         </button>
       </div>
 
+      {/* Feedback Banner */}
+      {feedback && (
+        <div
+          className={`animate-fade-in mb-6 flex items-center justify-between rounded-xl border p-4 text-sm ${
+            feedback.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/30 bg-red-500/10 text-red-300"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {feedback.type === "success" ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+            )}
+            <span>{feedback.message}</span>
+          </div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-slate-400 hover:text-slate-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Create Course Form Modal/Card */}
       {showCreate && (
         <form
@@ -114,7 +272,10 @@ export default function AdminCoursesPage() {
           className="animate-fade-in mb-8 rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-xl"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-white">Tambah Kelas Perkuliahan Baru</h3>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-400" />
+              Tambah Kelas Perkuliahan Baru
+            </h3>
             <button
               type="button"
               onClick={() => setShowCreate(false)}
@@ -129,8 +290,10 @@ export default function AdminCoursesPage() {
                 Kode Kelas
               </label>
               <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
+                value={createForm.code}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, code: e.target.value })
+                }
                 placeholder="Contoh: IF101"
                 required
                 className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -141,8 +304,10 @@ export default function AdminCoursesPage() {
                 Nama Mata Kuliah
               </label>
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={createForm.name}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, name: e.target.value })
+                }
                 placeholder="Contoh: Pemrograman Dasar"
                 required
                 className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -153,8 +318,10 @@ export default function AdminCoursesPage() {
                 Dosen Pengampu
               </label>
               <select
-                value={lecturerId}
-                onChange={(e) => setLecturerId(e.target.value)}
+                value={createForm.lecturerId}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, lecturerId: e.target.value })
+                }
                 required
                 className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
@@ -171,8 +338,10 @@ export default function AdminCoursesPage() {
                 Periode / Semester
               </label>
               <input
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
+                value={createForm.term}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, term: e.target.value })
+                }
                 required
                 className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
@@ -189,8 +358,9 @@ export default function AdminCoursesPage() {
             <button
               type="submit"
               disabled={creating}
-              className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-50"
             >
+              {creating && <Loader2 className="h-4 w-4 animate-spin" />}
               {creating ? "Menyimpan..." : "Simpan Kelas"}
             </button>
           </div>
@@ -232,15 +402,38 @@ export default function AdminCoursesPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() =>
-                    setShowEnroll(showEnroll === course.id ? null : course.id)
-                  }
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Enroll Mahasiswa
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Edit Course Button */}
+                  <button
+                    onClick={() => openEditModal(course)}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400"
+                    title="Edit Data Kelas"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-blue-400" />
+                    Edit
+                  </button>
+
+                  {/* Delete Course Button */}
+                  <button
+                    onClick={() => openDeleteModal(course)}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                    title="Hapus Kelas"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                    Hapus
+                  </button>
+
+                  {/* Enroll Students Button */}
+                  <button
+                    onClick={() =>
+                      setShowEnroll(showEnroll === course.id ? null : course.id)
+                    }
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Enroll Mahasiswa
+                  </button>
+                </div>
               </div>
 
               {/* Interactive Enroll Panel */}
@@ -286,9 +479,10 @@ export default function AdminCoursesPage() {
                     <button
                       type="button"
                       onClick={handleEnroll}
-                      disabled={selectedStudents.length === 0}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-500 disabled:opacity-40"
+                      disabled={selectedStudents.length === 0 || enrolling}
+                      className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-500 disabled:opacity-40"
                     >
+                      {enrolling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                       Daftarkan ({selectedStudents.length}) Mahasiswa
                     </button>
                   </div>
@@ -305,6 +499,163 @@ export default function AdminCoursesPage() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: Edit Data Kelas */}
+      {showEditModal && editingCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="animate-fade-in w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-blue-400" />
+                Edit Kelas Perkuliahan
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="text-slate-400 hover:text-slate-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                    Kode Kelas
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.code}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, code: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                    Nama Mata Kuliah
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                  Dosen Pengampu
+                </label>
+                <select
+                  value={editForm.lecturerId}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, lecturerId: e.target.value })
+                  }
+                  required
+                  className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Pilih Dosen Pengampu</option>
+                  {lecturers.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} ({l.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                  Periode / Semester
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.term}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, term: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-[#070c18] px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-50"
+                >
+                  {updating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {updating ? "Menyimpan..." : "Simpan Perubahan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Konfirmasi Hapus Kelas */}
+      {showDeleteModal && courseToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="animate-fade-in w-full max-w-md rounded-2xl border border-slate-800 bg-[#0e1726] p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-red-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Hapus Kelas Perkuliahan</h3>
+                <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus kelas{" "}
+              <strong className="text-white font-semibold">
+                {courseToDelete.code} - {courseToDelete.name}
+              </strong>
+              ?
+            </p>
+
+            <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300 leading-relaxed">
+              Semua data thread diskusi, pesan balasan, opini, serta data enrollment mahasiswa yang terdaftar di kelas ini akan dihapus secara permanen.
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {deleting ? "Menghapus..." : "Ya, Hapus Kelas"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

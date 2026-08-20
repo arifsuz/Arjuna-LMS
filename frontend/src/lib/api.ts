@@ -84,6 +84,12 @@ export const users = {
   create: (data: any) =>
     request("/admin/users", { method: "POST", json: data }),
 
+  update: (id: string, data: any) =>
+    request(`/admin/users/${id}`, { method: "PUT", json: data }),
+
+  delete: (id: string) =>
+    request(`/admin/users/${id}`, { method: "DELETE" }),
+
   bulkImport: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -92,6 +98,24 @@ export const users = {
       body: formData,
     });
   },
+
+  bulkDelete: (userIds: string[]) =>
+    request("/admin/users/bulk-delete", {
+      method: "POST",
+      json: { userIds },
+    }),
+
+  bulkUpdateRole: (userIds: string[], role: string) =>
+    request("/admin/users/bulk-update-role", {
+      method: "POST",
+      json: { userIds, role },
+    }),
+
+  bulkResetPassword: (userIds: string[], newPassword: string) =>
+    request("/admin/users/bulk-reset-password", {
+      method: "POST",
+      json: { userIds, newPassword },
+    }),
 
   resetPassword: (userId: string, newPassword: string) =>
     request(`/admin/users/${userId}/reset-password`, {
@@ -109,6 +133,8 @@ export const courses = {
     request("/admin/courses", { method: "POST", json: data }),
   update: (id: string, data: any) =>
     request(`/admin/courses/${id}`, { method: "PUT", json: data }),
+  delete: (id: string) =>
+    request(`/admin/courses/${id}`, { method: "DELETE" }),
   enroll: (courseId: string, studentIds: string[]) =>
     request(`/admin/courses/${courseId}/enroll`, {
       method: "POST",

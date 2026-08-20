@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -15,7 +17,15 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Readable } from 'stream';
 import * as csv from 'fast-csv';
 import { UsersService } from './users.service';
-import { CreateUserDto, ResetPasswordDto, QueryUsersDto } from './dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  ResetPasswordDto,
+  QueryUsersDto,
+  BulkDeleteUsersDto,
+  BulkUpdateRoleDto,
+  BulkResetPasswordDto,
+} from './dto';
 import { Roles, CurrentUser } from '../common/decorators';
 import { RolesGuard } from '../common/guards';
 import { Role } from '@prisma/client';
@@ -99,12 +109,50 @@ export class UsersController {
     });
   }
 
+  @Post('bulk-delete')
+  async bulkDelete(
+    @Body() dto: BulkDeleteUsersDto,
+    @CurrentUser('id') currentAdminId: string,
+  ) {
+    return this.usersService.bulkDelete(dto.userIds, currentAdminId);
+  }
+
+  @Post('bulk-update-role')
+  async bulkUpdateRole(
+    @Body() dto: BulkUpdateRoleDto,
+    @CurrentUser('id') currentAdminId: string,
+  ) {
+    return this.usersService.bulkUpdateRole(
+      dto.userIds,
+      dto.role,
+      currentAdminId,
+    );
+  }
+
+  @Post('bulk-reset-password')
+  async bulkResetPassword(@Body() dto: BulkResetPasswordDto) {
+    return this.usersService.bulkResetPassword(dto.userIds, dto.newPassword);
+  }
+
   @Post(':id/reset-password')
   async resetPassword(
     @Param('id') userId: string,
     @Body() dto: ResetPasswordDto,
   ) {
     return this.usersService.resetPassword(userId, dto.newPassword);
+  }
+
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(id, dto);
+  }
+
+  @Delete(':id')
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser('id') currentAdminId: string,
+  ) {
+    return this.usersService.delete(id, currentAdminId);
   }
 }
 

@@ -28,6 +28,10 @@ export class CreateCourseDto {
 export class UpdateCourseDto {
   @IsOptional()
   @IsString()
+  code?: string;
+
+  @IsOptional()
+  @IsString()
   name?: string;
 
   @IsOptional()
