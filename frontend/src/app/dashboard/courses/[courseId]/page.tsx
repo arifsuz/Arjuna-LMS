@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -45,6 +45,7 @@ import {
   Download,
   X,
   Play,
+  Zap,
 } from "lucide-react";
 import { BarChart, StatGauge, DonutChart } from "@/components/charts";
 
@@ -67,10 +68,26 @@ const MATERIAL_ICON_MAP: Record<string, any> = {
 };
 
 export default function CourseDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Memuat ruang perkuliahan...</div>}>
+      <CourseDetailContent />
+    </Suspense>
+  );
+}
+
+function CourseDetailContent() {
   const { courseId } = useParams<{ courseId: string }>();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>("modules");
+  const initialTab = (searchParams.get("tab") as ActiveTab) || "modules";
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as ActiveTab;
+    if (tabParam) setActiveTab(tabParam);
+  }, [searchParams]);
+
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -106,7 +123,7 @@ export default function CourseDetailPage() {
   const [newMeetingDate, setNewMeetingDate] = useState("");
   const [newMeetingPasscode, setNewMeetingPasscode] = useState("");
 
-  // Tab 4: Assignments & Plagiarism
+  // Tab 4: Assignments & Quick Grading
   const [assignments, setAssignments] = useState<any[]>([]);
   const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
   const [newAssignTitle, setNewAssignTitle] = useState("");
@@ -115,6 +132,12 @@ export default function CourseDetailPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<any | null>(null);
   const [submissionText, setSubmissionText] = useState("");
   const [submittingAssign, setSubmittingAssign] = useState(false);
+
+  // Quick Grade Modal for Lecturer
+  const [selectedSubmissionToGrade, setSelectedSubmissionToGrade] = useState<any | null>(null);
+  const [gradeScoreInput, setGradeScoreInput] = useState<number>(85);
+  const [gradeFeedbackInput, setGradeFeedbackInput] = useState<string>("");
+  const [savingGrade, setSavingGrade] = useState<boolean>(false);
 
   // Tab 5: Quizzes
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -1012,7 +1035,7 @@ export default function CourseDetailPage() {
                     </div>
                   </div>
 
-                  {/* Submission Detail with Turnitin Badge */}
+                  {/* Submission Detail with Turnitin Badge (Student View) */}
                   {mySub && (
                     <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs space-y-3 border border-black/5 dark:border-white/5">
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1032,6 +1055,70 @@ export default function CourseDetailPage() {
                       {mySub.feedback && (
                         <div className="pt-2 border-t border-black/5 dark:border-white/5 text-amber-700 dark:text-amber-300">
                           <strong>Umpan Balik Dosen:</strong> {mySub.feedback}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Submissions List for Lecturer / Admin */}
+                  {(isLecturer || isAdmin) && a.submissions && (
+                    <div className="pt-3 border-t border-black/5 dark:border-white/5 space-y-3">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                        <span className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-[#C9A05C]" />
+                          <span>Daftar Pengumpulan Mahasiswa ({a.submissions.length})</span>
+                        </span>
+                      </div>
+
+                      {a.submissions.length === 0 ? (
+                        <p className="text-[11px] text-slate-400 italic py-1">
+                          Belum ada mahasiswa yang mengumpulkan tugas ini.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {a.submissions.map((sub: any) => (
+                            <div
+                              key={sub.id}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs border border-black/5 dark:border-white/5"
+                            >
+                              <div>
+                                <div className="font-bold text-[#0A3266] dark:text-white">
+                                  {sub.student?.name}
+                                </div>
+                                <div className="text-[10px] text-slate-400">
+                                  Dikumpulkan: {new Date(sub.submittedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                  {sub.plagiarismSimilarity != null && (
+                                    <span className="ml-2 font-semibold text-emerald-600 dark:text-emerald-400">
+                                      · Turnitin: {sub.plagiarismSimilarity}%
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                {sub.score != null ? (
+                                  <span className="rounded-xl bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                    Nilai: {sub.score} / {a.maxScore}
+                                  </span>
+                                ) : (
+                                  <span className="rounded-xl bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                                    Belum Dinilai
+                                  </span>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedSubmissionToGrade(sub);
+                                    setGradeScoreInput(sub.score ?? 85);
+                                    setGradeFeedbackInput(sub.feedback ?? "");
+                                  }}
+                                  className="glass-button-primary rounded-xl px-3 py-1 text-xs font-bold shadow-sm"
+                                >
+                                  {sub.score != null ? "Ubah Nilai" : "Beri Nilai"}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -1968,6 +2055,109 @@ export default function CourseDetailPage() {
                 className="glass-button-primary rounded-xl px-5 py-2 text-xs font-bold shadow-lg"
               >
                 Siarkan Pengumuman
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL: QUICK GRADE SUBMISSION (LECTURER / ADMIN)
+      ═══════════════════════════════════════════════════════════════════ */}
+      {selectedSubmissionToGrade && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingGrade(true);
+              try {
+                await academicApi.gradeSubmission(selectedSubmissionToGrade.id, {
+                  score: Number(gradeScoreInput),
+                  feedback: gradeFeedbackInput,
+                });
+                setSelectedSubmissionToGrade(null);
+                loadAll();
+              } catch (err: any) {
+                alert("Gagal menyimpan nilai: " + (err.message || "Kesalahan server"));
+              } finally {
+                setSavingGrade(false);
+              }
+            }}
+            className="glass-panel w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-[#C9A05C]/50 space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-black/10 dark:border-[#C9A05C]/20 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-[#0A3266] dark:text-white">
+                  Penilaian Berkas: {selectedSubmissionToGrade.student?.name}
+                </h3>
+                {selectedSubmissionToGrade.plagiarismSimilarity != null && (
+                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Turnitin Similarity: {selectedSubmissionToGrade.plagiarismSimilarity}% (Keaslian: {100 - selectedSubmissionToGrade.plagiarismSimilarity}%)
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedSubmissionToGrade(null)}
+                className="rounded-xl p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-[#ebd09e]">
+                Jawaban / Teks Tugas Mahasiswa:
+              </label>
+              <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] p-3 text-xs text-slate-700 dark:text-slate-200 max-h-36 overflow-y-auto italic border border-black/5 dark:border-white/5 leading-relaxed">
+                &ldquo;{selectedSubmissionToGrade.submittedText}&rdquo;
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-[#ebd09e]">
+                  Skor Nilai Akhir (0 - 100) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  required
+                  value={gradeScoreInput}
+                  onChange={(e) => setGradeScoreInput(Number(e.target.value))}
+                  className="glass-input w-full rounded-xl px-3 py-2 text-xs font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-[#ebd09e]">
+                Umpan Balik / Catatan Dosen (Feedback):
+              </label>
+              <textarea
+                rows={3}
+                value={gradeFeedbackInput}
+                onChange={(e) => setGradeFeedbackInput(e.target.value)}
+                placeholder="Tuliskan umpan balik atau catatan evaluasi untuk mahasiswa..."
+                className="glass-input w-full rounded-2xl p-3 text-xs leading-relaxed"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+              <button
+                type="button"
+                onClick={() => setSelectedSubmissionToGrade(null)}
+                className="glass-button-secondary rounded-xl px-4 py-2 text-xs font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={savingGrade}
+                className="glass-button-primary rounded-xl px-5 py-2 text-xs font-bold shadow-lg"
+              >
+                {savingGrade ? "Menyimpan..." : "Simpan & Rilis Nilai"}
               </button>
             </div>
           </form>

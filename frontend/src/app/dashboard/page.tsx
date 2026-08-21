@@ -41,6 +41,13 @@ import {
   Target,
   FileSpreadsheet,
   CheckCircle2,
+  Play,
+  Zap,
+  HelpCircle,
+  Megaphone,
+  Sliders,
+  CheckSquare,
+  Send,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -92,20 +99,17 @@ export default function DashboardPage() {
     { label: "Sadness", value: datasetStats?.emotionCounts?.Sadness || 1, color: "#3B82F6" },
   ];
 
-  const sentimentChartData = [
-    { label: "Positif", value: datasetStats?.sentimentCounts?.Positif || 8, color: "#10B981" },
-    { label: "Negatif", value: datasetStats?.sentimentCounts?.Negatif || 2, color: "#EF4444" },
-  ];
-
   const courseEnrollmentBarData = courseList.map((c) => ({
     label: c.code,
     value: c._count?.enrollments || 4,
     color: "#C9A05C",
   }));
 
+  const firstCourseId = courseList[0]?.id;
+
   return (
     <div className="space-y-8 pb-12">
-      {/* ═══ 1. Hero Banner with Welcome Context & HCI Visual Accents ═══ */}
+      {/* ═══ 1. Hero Banner with Welcome Context & Persona Insights ═══ */}
       <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-[#C9A05C]/20 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
@@ -127,8 +131,8 @@ export default function DashboardPage() {
                   {isAdmin
                     ? "Pusat Kontrol Ekosistem Akademik & Riset AI"
                     : isLecturer
-                      ? "Workspace Dosen & Manajemen Kelas Terintegrasi"
-                      : "Portal Pembelajaran & Kolaborasi Mahasiswa"}
+                      ? "Cockpit Pengajaran & Manajemen Kelas Terpadu"
+                      : "Portal Belajar & Kolaborasi Terintegrasi"}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A3266] dark:text-[#FBF8F3]">
@@ -139,10 +143,10 @@ export default function DashboardPage() {
               </h1>
               <p className="mt-1.5 text-sm text-slate-600 dark:text-[#ebd09e]/80 leading-relaxed">
                 {isAdmin
-                  ? "Kelola administrasi perkuliahan, pengguna, serta pantau visualisasi dataset & analitik model penelitian ARJUNA-Net."
+                  ? "Kelola administrasi perkuliahan, pengguna, pengumuman sivitas, serta pantau visualisasi dataset & inferensi model ARJUNA-Net."
                   : isLecturer
-                    ? "Kelola modul RPS, selenggarakan kelas virtual, evaluasi tugas dengan uji Turnitin, dan rekapitulasi nilai mahasiswa."
-                    : "Akses materi kuliah, ikuti perkuliahan virtual, kumpulkan tugas berkas, dan diskusikan topik bahasan bersama dosen."}
+                    ? "Kelola materi perkuliahan, buka kelas virtual Google Meet, evaluasi tugas dengan Turnitin, dan periksa Buku Nilai mahasiswa."
+                    : "Akses modul kuliah, ikuti sesi tatap muka daring, kumpulkan tugas berkas tepat waktu, dan diskusikan materi bersama dosen."}
               </p>
             </div>
           </div>
@@ -157,7 +161,7 @@ export default function DashboardPage() {
                   {courseList.length}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-[#dbb779] font-medium">
-                  Mata Kuliah Aktif
+                  Mata Kuliah Terdaftar
                 </div>
               </div>
             </div>
@@ -165,16 +169,157 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ═══ 2. ADMIN EXCLUSIVE: VISUAL ANALYTICS COCKPIT & QUICK ACTION DOCK ═══ */}
+      {/* ═══ 2. PERSONA SHORTCUTS & QUICK ACTION DOCK (HCI FITTS'S & HICK'S LAW) ═══ */}
+      {/* 2A. DOSEN (LECTURER) QUICK ACTION DOCK */}
+      {isLecturer && (
+        <section className="glass-panel rounded-3xl p-6 border-l-4 border-l-[#C9A05C] space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-[#0A3266] dark:text-white flex items-center gap-2">
+              <Zap className="h-4 w-4 text-[#C9A05C]" />
+              <span>Pintasan Aksi Dosen (Quick Action Dock)</span>
+            </h2>
+            <span className="text-xs font-semibold text-slate-400">1-Klik Akses Cepat</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {firstCourseId ? (
+              <>
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=virtual`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-[#0A3266]/10 dark:hover:bg-[#C9A05C]/15 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform">
+                    <Video className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Jadwalkan Meet</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Google Meet / Zoom</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=assignments`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-[#0A3266]/10 dark:hover:bg-[#C9A05C]/15 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+                    <FileCheck className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Terbitkan Tugas</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Uji Turnitin Dokumen</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=quizzes`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-[#0A3266]/10 dark:hover:bg-[#C9A05C]/15 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Buat Kuis Daring</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Pilihan Ganda / Esai</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=threads`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-[#0A3266]/10 dark:hover:bg-[#C9A05C]/15 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mb-2 group-hover:scale-110 transition-transform">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Buka Forum Diskusi</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Topik Tanya Jawab</span>
+                </Link>
+              </>
+            ) : (
+              <p className="col-span-4 text-xs text-slate-400 text-center py-2">
+                Mata kuliah belum terdaftar. Hubungi admin untuk assignment kelas.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 2B. MAHASISWA (STUDENT) QUICK ACTION DOCK */}
+      {isStudent && (
+        <section className="glass-panel rounded-3xl p-6 border-l-4 border-l-blue-500 space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-[#0A3266] dark:text-white flex items-center gap-2">
+              <Zap className="h-4 w-4 text-blue-500" />
+              <span>Aksi Cepat Mahasiswa (Learning Shortcuts)</span>
+            </h2>
+            <span className="text-xs font-semibold text-slate-400">Navigasi Langsung</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {firstCourseId ? (
+              <>
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=modules`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-blue-500/10 dark:hover:bg-blue-500/20 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform">
+                    <Play className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Lanjutkan Materi</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Modul Perkuliahan</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=assignments`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-amber-500/10 dark:hover:bg-amber-500/20 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+                    <FileCheck className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Kumpulkan Tugas</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Dropboxes & Berkas</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=quizzes`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-purple-500/10 dark:hover:bg-purple-500/20 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Kerjakan Kuis</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Ujian Pemahaman</span>
+                </Link>
+
+                <Link
+                  href={`/dashboard/courses/${firstCourseId}?tab=threads`}
+                  className="flex flex-col items-center text-center p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20 border border-black/5 dark:border-white/5 transition-all group"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mb-2 group-hover:scale-110 transition-transform">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0A3266] dark:text-white">Diskusi Forum</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Tanya Jawab Dosen</span>
+                </Link>
+              </>
+            ) : (
+              <p className="col-span-4 text-xs text-slate-400 text-center py-2">
+                Anda belum terdaftar pada kelas. Silakan hubungi dosen/admin akademik.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 2C. ADMIN EXCLUSIVE: QUICK ACTION DOCK & ANALYTICS COCKPIT */}
       {isAdmin && (
         <section className="space-y-6 animate-in fade-in duration-300">
-          {/* Quick Action Dock */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-bold text-[#0A3266] dark:text-white flex items-center gap-2">
               <Target className="h-4 w-4 text-[#C9A05C]" />
               <span>Pusat Kendali & Aksi Cepat Administrator</span>
             </h2>
             <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/dashboard/admin/announcements"
+                className="glass-button-secondary inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm"
+              >
+                <Megaphone className="h-3.5 w-3.5 text-[#C9A05C]" />
+                <span>Broadcast Pengumuman</span>
+              </Link>
               <Link
                 href="/dashboard/admin/users"
                 className="glass-button-secondary inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm"
@@ -188,6 +333,13 @@ export default function DashboardPage() {
               >
                 <Plus className="h-3.5 w-3.5 text-[#C9A05C]" />
                 <span>Buat Mata Kuliah</span>
+              </Link>
+              <Link
+                href="/dashboard/admin/settings"
+                className="glass-button-secondary inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm"
+              >
+                <Sliders className="h-3.5 w-3.5 text-[#C9A05C]" />
+                <span>Pengaturan Sistem</span>
               </Link>
               <Link
                 href="/dashboard/admin/dataset"
@@ -310,13 +462,13 @@ export default function DashboardPage() {
       {/* ═══ 3. CAMPUS QUICK WIDGETS: LIVE MEETINGS, PENDING TASKS, ANNOUNCEMENTS ═══ */}
       {academicOverview && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* 1. Upcoming Virtual Meetings */}
+          {/* 1. Upcoming Virtual Meetings with Direct Pulsing Join Button */}
           <div className="glass-panel rounded-3xl p-5 border-l-4 border-l-blue-500 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#ebd09e] flex items-center gap-1.5">
                   <Video className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Kuliah Daring Hari Ini</span>
+                  <span>Kuliah Daring Terdekat</span>
                 </span>
                 <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-300">
                   {academicOverview.upcomingMeetings?.length || 0} Sesi
@@ -328,18 +480,19 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-2.5">
                   {academicOverview.upcomingMeetings?.slice(0, 2).map((m: any) => (
-                    <div key={m.id} className="rounded-xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1">
+                    <div key={m.id} className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1.5 border border-black/5 dark:border-white/5">
                       <div className="font-bold text-[#0A3266] dark:text-white truncate">{m.title}</div>
                       <div className="text-[11px] text-slate-500 flex items-center justify-between">
-                        <span>{m.course?.code}</span>
+                        <span className="font-semibold">{m.course?.code}</span>
                         <a
                           href={m.meetingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          className="glass-button-primary inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold shadow-sm"
                         >
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span>Masuk Meet</span>
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3 ml-0.5" />
                         </a>
                       </div>
                     </div>
@@ -349,31 +502,35 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 2. Pending Assignments */}
+          {/* 2. Pending Assignments / Grading Queue with Urgency Badges */}
           <div className="glass-panel rounded-3xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#ebd09e] flex items-center gap-1.5">
                   <FileCheck className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Tugas & Deadline</span>
+                  <span>{isLecturer ? "Antrean Penilaian Tugas" : "Tugas & Deadline"}</span>
                 </span>
                 <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                  {academicOverview.pendingAssignments?.length || 0} Tugas
+                  {academicOverview.pendingAssignments?.length || 0} Berkas
                 </span>
               </div>
 
               {academicOverview.pendingAssignments?.length === 0 ? (
-                <p className="text-xs text-slate-500 py-3">Semua tugas telah diselesaikan dengan baik.</p>
+                <p className="text-xs text-slate-500 py-3">Semua berkas telah diproses dengan lengkap.</p>
               ) : (
                 <div className="space-y-2.5">
                   {academicOverview.pendingAssignments?.slice(0, 2).map((a: any) => (
-                    <div key={a.id} className="rounded-xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1">
+                    <div key={a.id} className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1.5 border border-black/5 dark:border-white/5">
                       <div className="font-bold text-[#0A3266] dark:text-white truncate">{a.title}</div>
                       <div className="text-[11px] text-slate-500 flex items-center justify-between">
                         <span>{a.course?.code}</span>
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                          {new Date(a.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
-                        </span>
+                        <Link
+                          href={`/dashboard/courses/${a.courseId}?tab=assignments`}
+                          className="font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                        >
+                          <span>{isLecturer ? "Beri Nilai" : "Buka Tugas"}</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -382,14 +539,22 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 3. Campus Announcements */}
+          {/* 3. Campus Announcements with Broadcast Indicator */}
           <div className="glass-panel rounded-3xl p-5 border-l-4 border-l-[#C9A05C] flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#ebd09e] flex items-center gap-1.5">
-                  <Bell className="h-3.5 w-3.5 text-[#C9A05C]" />
+                  <Megaphone className="h-3.5 w-3.5 text-[#C9A05C]" />
                   <span>Pengumuman Sivitas</span>
                 </span>
+                {isAdmin && (
+                  <Link
+                    href="/dashboard/admin/announcements"
+                    className="text-[10px] font-bold text-[#C9A05C] hover:underline"
+                  >
+                    Kelola
+                  </Link>
+                )}
               </div>
 
               {academicOverview.recentAnnouncements?.length === 0 ? (
@@ -397,9 +562,9 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {academicOverview.recentAnnouncements?.slice(0, 2).map((an: any) => (
-                    <div key={an.id} className="rounded-xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1">
+                    <div key={an.id} className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-3 text-xs space-y-1 border border-black/5 dark:border-white/5">
                       <div className="font-bold text-[#0A3266] dark:text-white line-clamp-1">{an.title}</div>
-                      <p className="text-[11px] text-slate-500 line-clamp-1">{an.content}</p>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 leading-relaxed">{an.content}</p>
                     </div>
                   ))}
                 </div>
@@ -409,7 +574,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 4. COURSE LIST SECTION (RICH GLASS CARDS WITH METRICS) ═══ */}
+      {/* ═══ 4. COURSE LIST SECTION (RICH GLASS CARDS WITH METRICS & JUMP BAR) ═══ */}
       <section>
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -417,7 +582,7 @@ export default function DashboardPage() {
               <Layers className="h-4 w-4" />
             </div>
             <h2 className="text-lg font-bold text-[#0A3266] dark:text-[#FBF8F3]">
-              {isAdmin ? "Semua Mata Kuliah Terdaftar" : "Daftar Mata Kuliah Anda"}
+              {isAdmin ? "Semua Mata Kuliah Terdaftar" : isLecturer ? "Mata Kuliah yang Diampu" : "Mata Kuliah & Modul Saya"}
             </h2>
           </div>
           <span className="text-xs font-semibold text-slate-500 dark:text-[#dbb779]">
@@ -443,15 +608,16 @@ export default function DashboardPage() {
             <p className="mt-1 text-xs text-slate-500 dark:text-[#ebd09e]/70 max-w-md mx-auto leading-relaxed">
               {isAdmin
                 ? "Silakan buat kelas baru melalui menu Kelola Kelas untuk memulai aktivitas perkuliahan."
-                : "Anda belum terdaftar pada kelas manapun. Hubungi dosen pengampu atau tim akademik kampus untuk mendapatkan akses kelas."}
+                : isLecturer
+                  ? "Anda belum ditugaskan pada kelas manapun. Hubungi tim akademik kampus untuk penugasan mata kuliah."
+                  : "Anda belum terdaftar pada kelas manapun. Hubungi dosen pengampu atau tim akademik kampus untuk mendapatkan akses kelas."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {courseList.map((course) => (
-              <Link
+              <div
                 key={course.id}
-                href={`/dashboard/courses/${course.id}`}
                 className="glass-card group relative flex flex-col justify-between rounded-3xl p-6 overflow-hidden transition-all hover:border-[#C9A05C]/50 hover:shadow-xl"
               >
                 {/* Glow accent */}
@@ -462,14 +628,19 @@ export default function DashboardPage() {
                     <span className="inline-flex items-center rounded-xl border border-[#0A3266]/25 dark:border-[#C9A05C]/40 bg-[#0A3266]/10 dark:bg-[#0A3266]/40 px-3 py-1 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e]">
                       {course.code}
                     </span>
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/5 dark:bg-white/[0.06] text-slate-500 dark:text-[#dbb779] transition-all group-hover:bg-[#0A3266] dark:group-hover:bg-[#C9A05C] group-hover:text-white dark:group-hover:text-[#04132b]">
+                    <Link
+                      href={`/dashboard/courses/${course.id}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/5 dark:bg-white/[0.06] text-slate-500 dark:text-[#dbb779] transition-all group-hover:bg-[#0A3266] dark:group-hover:bg-[#C9A05C] group-hover:text-white dark:group-hover:text-[#04132b]"
+                    >
                       <ArrowRight className="h-4 w-4" />
-                    </div>
+                    </Link>
                   </div>
 
-                  <h3 className="text-base font-bold text-[#0A3266] dark:text-[#FBF8F3] group-hover:text-[#1b5ba8] dark:group-hover:text-[#C9A05C] transition-colors line-clamp-1">
-                    {course.name}
-                  </h3>
+                  <Link href={`/dashboard/courses/${course.id}`}>
+                    <h3 className="text-base font-bold text-[#0A3266] dark:text-[#FBF8F3] group-hover:text-[#1b5ba8] dark:group-hover:text-[#C9A05C] transition-colors line-clamp-1">
+                      {course.name}
+                    </h3>
+                  </Link>
 
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
                     <span className="font-medium text-slate-700 dark:text-[#ebd09e]">
@@ -480,7 +651,46 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between border-t border-black/10 dark:border-[#C9A05C]/20 pt-4 text-xs font-medium text-slate-500 dark:text-slate-300">
+                {/* 1-Click Feature Jump Bar (HCI Fitts's Law) */}
+                <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-1 text-[11px] font-bold">
+                  <Link
+                    href={`/dashboard/courses/${course.id}?tab=modules`}
+                    className="rounded-lg px-2 py-1 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-[#C9A05C]/20 hover:text-[#C9A05C] transition-colors text-slate-600 dark:text-slate-300"
+                    title="Buka Modul Materi"
+                  >
+                    Modul
+                  </Link>
+                  <Link
+                    href={`/dashboard/courses/${course.id}?tab=threads`}
+                    className="rounded-lg px-2 py-1 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-[#C9A05C]/20 hover:text-[#C9A05C] transition-colors text-slate-600 dark:text-slate-300"
+                    title="Buka Forum Diskusi"
+                  >
+                    Forum
+                  </Link>
+                  <Link
+                    href={`/dashboard/courses/${course.id}?tab=virtual`}
+                    className="rounded-lg px-2 py-1 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-blue-500/20 hover:text-blue-500 transition-colors text-slate-600 dark:text-slate-300"
+                    title="Kelas Virtual"
+                  >
+                    Meet
+                  </Link>
+                  <Link
+                    href={`/dashboard/courses/${course.id}?tab=assignments`}
+                    className="rounded-lg px-2 py-1 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-amber-500/20 hover:text-amber-500 transition-colors text-slate-600 dark:text-slate-300"
+                    title="Tugas & Turnitin"
+                  >
+                    Tugas
+                  </Link>
+                  <Link
+                    href={`/dashboard/courses/${course.id}?tab=gradebook`}
+                    className="rounded-lg px-2 py-1 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-emerald-500/20 hover:text-emerald-500 transition-colors text-slate-600 dark:text-slate-300"
+                    title="Buku Nilai"
+                  >
+                    Nilai
+                  </Link>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between border-t border-black/10 dark:border-[#C9A05C]/20 pt-3 text-xs font-medium text-slate-500 dark:text-slate-300">
                   <span className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-[#0A3266] dark:text-[#C9A05C]" />
                     <span>{course._count?.enrollments || 0} Mahasiswa</span>
@@ -490,7 +700,7 @@ export default function DashboardPage() {
                     <span>{course._count?.threads || 0} Diskusi</span>
                   </span>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
