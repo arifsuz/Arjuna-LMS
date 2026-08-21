@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, type ReactNode } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, useMemo, Suspense, type ReactNode } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
@@ -85,6 +85,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const isLecturer = user?.role === "LECTURER";
   const isStudent = user?.role === "STUDENT";
 
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
+
   // Dynamic Breadcrumb computation
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
@@ -92,8 +95,19 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
     if (segments.includes("courses")) {
       crumbs.push({ label: "Mata Kuliah", href: "/dashboard/courses" });
+      if (currentTab === "assignments") {
+        crumbs.push({ label: isLecturer ? "Pusat Tugas & Turnitin" : "Tugas & Dropboxes", href: "/dashboard/courses?tab=assignments" });
+      } else if (currentTab === "quizzes") {
+        crumbs.push({ label: "Kuis & Evaluasi Daring", href: "/dashboard/courses?tab=quizzes" });
+      } else if (currentTab === "virtual") {
+        crumbs.push({ label: "Jadwal Kuliah Virtual", href: "/dashboard/courses?tab=virtual" });
+      } else if (currentTab === "gradebook") {
+        crumbs.push({ label: isLecturer ? "Buku Nilai & Rekap Mutu" : "Transkrip Sementara", href: "/dashboard/courses?tab=gradebook" });
+      } else if (currentTab === "threads") {
+        crumbs.push({ label: "Forum Diskusi", href: "/dashboard/courses?tab=threads" });
+      }
     } else if (segments.includes("announcements")) {
-      crumbs.push({ label: "Pengumuman", href: "/dashboard/announcements" });
+      crumbs.push({ label: "Papan Pengumuman", href: "/dashboard/announcements" });
     } else if (segments.includes("admin")) {
       if (segments.includes("users")) {
         crumbs.push({ label: "Administrasi", href: "/dashboard/admin/users" });
@@ -113,7 +127,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       }
     }
     return crumbs;
-  }, [pathname]);
+  }, [pathname, currentTab, isLecturer]);
 
   if (loading) {
     return (
@@ -437,9 +451,22 @@ function AppShellInner({ children }: { children: ReactNode }) {
               </div>
 
               {group.items.map((item) => {
-                const isActive = item.exact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                let isActive = false;
+                try {
+                  const itemUrl = new URL(item.href, "http://localhost");
+                  const itemPath = itemUrl.pathname;
+                  const itemTab = itemUrl.searchParams.get("tab");
+
+                  if (itemTab) {
+                    isActive = pathname === itemPath && currentTab === itemTab;
+                  } else if (item.exact) {
+                    isActive = pathname === itemPath && !currentTab;
+                  } else {
+                    isActive = (pathname === itemPath && !currentTab) || pathname.startsWith(itemPath + "/");
+                  }
+                } catch {
+                  isActive = pathname === item.href;
+                }
 
                 return (
                   <Link
@@ -639,7 +666,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <AppShellInner>{children}</AppShellInner>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-[#FBF8F3] dark:bg-[#061a3b] text-xs text-slate-400">
+            Memuat antarmuka LMS...
+          </div>
+        }
+      >
+        <AppShellInner>{children}</AppShellInner>
+      </Suspense>
     </AuthProvider>
   );
 }
