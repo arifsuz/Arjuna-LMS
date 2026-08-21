@@ -30,6 +30,10 @@ import {
   Pin,
   AlertTriangle,
   ExternalLink,
+  FileCheck,
+  HelpCircle,
+  Video,
+  MessageSquare,
 } from "lucide-react";
 
 interface NavGroup {
@@ -88,9 +92,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
     if (segments.includes("courses")) {
       crumbs.push({ label: "Mata Kuliah", href: "/dashboard/courses" });
-      if (segments.length > 2) {
-        crumbs.push({ label: "Detail Kelas", href: pathname });
-      }
+    } else if (segments.includes("announcements")) {
+      crumbs.push({ label: "Pengumuman", href: "/dashboard/announcements" });
     } else if (segments.includes("admin")) {
       if (segments.includes("users")) {
         crumbs.push({ label: "Administrasi", href: "/dashboard/admin/users" });
@@ -194,46 +197,154 @@ function AppShellInner({ children }: { children: ReactNode }) {
       }
     );
   } else if (isLecturer) {
-    navGroups.push({
-      groupTitle: "Ruang Pengajaran",
-      items: [
-        {
-          href: "/dashboard",
-          label: "Beranda Utama",
-          icon: LayoutDashboard,
-          exact: true,
-          description: "Jadwal kuliah daring & tugas terkini",
-        },
-        {
-          href: "/dashboard/courses",
-          label: "Mata Kuliah & RPS Saya",
-          icon: GraduationCap,
-          exact: false,
-          description: "Modul, kuis, tugas, & buku nilai",
-        },
-      ],
-    });
+    navGroups.push(
+      {
+        groupTitle: "Pusat Pengajaran",
+        items: [
+          {
+            href: "/dashboard",
+            label: "Beranda Utama",
+            icon: LayoutDashboard,
+            exact: true,
+            description: "Cockpit mengajar & jadwal kuliah",
+          },
+          {
+            href: "/dashboard/courses",
+            label: "Mata Kuliah & RPS Saya",
+            icon: GraduationCap,
+            exact: true,
+            description: "Silabus, CPL & modul pembelajaran",
+          },
+        ],
+      },
+      {
+        groupTitle: "Kegiatan & Evaluasi Pembelajaran",
+        items: [
+          {
+            href: "/dashboard/courses?tab=assignments",
+            label: "Pusat Tugas & Turnitin",
+            icon: FileCheck,
+            exact: false,
+            description: "Dropbox tugas & uji keaslian dokumen",
+          },
+          {
+            href: "/dashboard/courses?tab=quizzes",
+            label: "Kuis & Bank Soal Daring",
+            icon: HelpCircle,
+            exact: false,
+            description: "Pilihan ganda, esai & batas waktu",
+          },
+          {
+            href: "/dashboard/courses?tab=virtual",
+            label: "Jadwal Kuliah Virtual (Meet)",
+            icon: Video,
+            exact: false,
+            description: "Sesi tatap muka Google Meet & Zoom",
+          },
+          {
+            href: "/dashboard/courses?tab=gradebook",
+            label: "Buku Nilai & Rekap Mutu",
+            icon: BookOpen,
+            exact: false,
+            description: "Rekapitulasi nilai & huruf mutu A-E",
+          },
+        ],
+      },
+      {
+        groupTitle: "Komunikasi Sivitas",
+        items: [
+          {
+            href: "/dashboard/courses?tab=threads",
+            label: "Forum Diskusi Perkuliahan",
+            icon: MessageSquare,
+            exact: false,
+            description: "Tanya jawab asinkron & respons dosen",
+          },
+          {
+            href: "/dashboard/announcements",
+            label: "Papan Pengumuman Kampus",
+            icon: Megaphone,
+            exact: false,
+            description: "Siaran resmi akademik & informasi",
+          },
+        ],
+      }
+    );
   } else {
     // Student
-    navGroups.push({
-      groupTitle: "Ruang Belajar Mahasiswa",
-      items: [
-        {
-          href: "/dashboard",
-          label: "Beranda Utama",
-          icon: LayoutDashboard,
-          exact: true,
-          description: "Jadwal perkuliahan & pengumuman",
-        },
-        {
-          href: "/dashboard/courses",
-          label: "Mata Kuliah & Modul Saya",
-          icon: BookOpen,
-          exact: false,
-          description: "Akses materi, kuis, tugas & forum",
-        },
-      ],
-    });
+    navGroups.push(
+      {
+        groupTitle: "Ruang Belajar Mahasiswa",
+        items: [
+          {
+            href: "/dashboard",
+            label: "Beranda & Timeline Belajar",
+            icon: LayoutDashboard,
+            exact: true,
+            description: "Progres belajar & deadline terdekat",
+          },
+          {
+            href: "/dashboard/courses",
+            label: "Mata Kuliah & Modul Saya",
+            icon: BookOpen,
+            exact: true,
+            description: "Akses materi slide, video & silabus",
+          },
+        ],
+      },
+      {
+        groupTitle: "Aktivitas & Capaian Akademik",
+        items: [
+          {
+            href: "/dashboard/courses?tab=assignments",
+            label: "Tugas & Dropboxes Berkas",
+            icon: FileCheck,
+            exact: false,
+            description: "Kumpulkan tugas & cek skor Turnitin",
+          },
+          {
+            href: "/dashboard/courses?tab=quizzes",
+            label: "Kuis & Ujian Daring",
+            icon: HelpCircle,
+            exact: false,
+            description: "Pengerjaan evaluasi pemahaman",
+          },
+          {
+            href: "/dashboard/courses?tab=virtual",
+            label: "Jadwal Kuliah Virtual (Meet)",
+            icon: Video,
+            exact: false,
+            description: "Kelas tatap muka daring aktif",
+          },
+          {
+            href: "/dashboard/courses?tab=gradebook",
+            label: "Transkrip & Nilai Sementara",
+            icon: GraduationCap,
+            exact: false,
+            description: "Capaian huruf mutu & estimasi IPK",
+          },
+        ],
+      },
+      {
+        groupTitle: "Komunikasi Sivitas",
+        items: [
+          {
+            href: "/dashboard/courses?tab=threads",
+            label: "Forum Tanya Jawab & Diskusi",
+            icon: MessageSquare,
+            exact: false,
+            description: "Interaksi bersama dosen & rekan",
+          },
+          {
+            href: "/dashboard/announcements",
+            label: "Papan Pengumuman Akademik",
+            icon: Megaphone,
+            exact: false,
+            description: "Siaran informasi resmi perkuliahan",
+          },
+        ],
+      }
+    );
   }
 
   const roleLabel = isAdmin

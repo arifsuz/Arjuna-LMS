@@ -496,51 +496,83 @@ function CourseDetailContent() {
         </div>
       </div>
 
-      {/* 3. Seven Core LMS Navigation Tabs */}
-      <div className="flex items-center overflow-x-auto no-scrollbar gap-2 border-b border-black/10 dark:border-[#C9A05C]/20 pb-3">
-        {[
-          { id: "modules", label: "RPS & Modul Materi", icon: BookOpen },
-          { id: "threads", label: "Forum ARJUNA-Net", icon: MessageSquare, badge: threadList.length },
-          { id: "virtual", label: "Kelas Virtual", icon: Video, badge: meetings.length },
-          { id: "assignments", label: "Tugas & Plagiarisme", icon: FileCheck, badge: assignments.length },
-          { id: "quizzes", label: "Kuis & Ujian", icon: QuizIcon, badge: quizzes.length },
-          { id: "gradebook", label: "Buku Nilai (Gradebook)", icon: GraduationCap },
-          { id: "announcements", label: "Pengumuman & Kelompok", icon: Bell, badge: announcements.length },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as ActiveTab)}
-              className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all ${
-                isActive
-                  ? "bg-[#C9A05C] text-[#0A3266] shadow-lg ring-2 ring-[#C9A05C]/50"
-                  : "glass-button-secondary text-slate-600 dark:text-[#ebd09e]/80 hover:text-[#0A3266] dark:hover:text-white"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span
-                  className={`ml-1 rounded-full px-2 py-0.2 text-[10px] font-extrabold ${
-                    isActive
-                      ? "bg-[#0A3266] text-white"
-                      : "bg-[#0A3266]/15 dark:bg-white/15 text-[#0A3266] dark:text-[#ebd09e]"
-                  }`}
-                >
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* ═══ 3. Standard Professional Campus LMS Classroom Structure (Sidebar + Workspace) ═══ */}
+      <div className="flex flex-col lg:flex-row items-start gap-6">
+        {/* 3A. Left Course Sub-Navigation Sidebar */}
+        <aside className="w-full lg:w-72 shrink-0 glass-panel rounded-3xl p-5 shadow-xl space-y-5 lg:sticky lg:top-24 border border-black/10 dark:border-[#C9A05C]/20">
+          <div className="space-y-4">
+            {[
+              {
+                groupTitle: "Kurikulum & Modul",
+                items: [
+                  { id: "modules", label: "RPS & Modul Materi", icon: BookOpen },
+                ],
+              },
+              {
+                groupTitle: "Interaksi & Kuliah",
+                items: [
+                  { id: "threads", label: "Forum Diskusi ARJUNA", icon: MessageSquare, badge: threadList.length },
+                  { id: "virtual", label: "Kuliah Tatap Muka (Meet)", icon: Video, badge: meetings.length },
+                  { id: "announcements", label: "Pengumuman & Kelompok", icon: Bell, badge: announcements.length },
+                ],
+              },
+              {
+                groupTitle: "Tugas & Evaluasi",
+                items: [
+                  { id: "assignments", label: "Tugas & Turnitin", icon: FileCheck, badge: assignments.length },
+                  { id: "quizzes", label: "Kuis & Ujian Daring", icon: QuizIcon, badge: quizzes.length },
+                  { id: "gradebook", label: "Buku Nilai (Gradebook)", icon: GraduationCap },
+                ],
+              },
+            ].map((group) => (
+              <div key={group.groupTitle} className="space-y-1">
+                <div className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]">
+                  {group.groupTitle}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id as ActiveTab)}
+                        className={`w-full flex items-center justify-between rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all text-left ${
+                          isActive
+                            ? "bg-[#C9A05C] text-[#0A3266] shadow-md ring-1 ring-[#C9A05C]/50"
+                            : "text-slate-600 dark:text-[#ebd09e]/80 hover:bg-black/5 dark:hover:bg-white/[0.06] hover:text-[#0A3266] dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        {item.badge !== undefined && item.badge > 0 && (
+                          <span
+                            className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                              isActive
+                                ? "bg-[#0A3266] text-white"
+                                : "bg-[#0A3266]/10 dark:bg-white/10 text-[#0A3266] dark:text-[#ebd09e]"
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          TAB 1: RPS & MODUL PEMBELAJARAN (LEARNING PATH)
-      ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === "modules" && (
+        {/* 3B. Main Classroom Content Area */}
+        <main className="flex-1 w-full min-w-0 space-y-6">
+          {/* ═══════════════════════════════════════════════════════════════════
+              TAB 1: RPS & MODUL PEMBELAJARAN (LEARNING PATH)
+          ═══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "modules" && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* Syllabus & RPS Overview Card */}
           {course.syllabus && (
@@ -1554,6 +1586,8 @@ function CourseDetailContent() {
           </div>
         </div>
       )}
+        </main>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
           MODAL: SUBMIT ASSIGNMENT DROPBOX
