@@ -46,6 +46,7 @@ import {
   X,
   Play,
 } from "lucide-react";
+import { BarChart, StatGauge, DonutChart } from "@/components/charts";
 
 type ActiveTab =
   | "modules"
@@ -1013,16 +1014,16 @@ export default function CourseDetailPage() {
 
                   {/* Submission Detail with Turnitin Badge */}
                   {mySub && (
-                    <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs space-y-2 border border-black/5 dark:border-white/5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs space-y-3 border border-black/5 dark:border-white/5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <span className="font-bold text-[#0A3266] dark:text-[#ebd09e]">
-                          Jawaban Anda:
+                          Jawaban & Berkas Anda:
                         </span>
                         {mySub.plagiarismSimilarity != null && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            <span>Turnitin Similarity: {mySub.plagiarismSimilarity}% (Lolos Keaslian)</span>
-                          </span>
+                          <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                            <span>Turnitin Originality: {100 - mySub.plagiarismSimilarity}% Keaslian ({mySub.plagiarismSimilarity}% Similarity)</span>
+                          </div>
                         )}
                       </div>
                       <p className="text-slate-600 dark:text-slate-300 italic">
@@ -1122,47 +1123,72 @@ export default function CourseDetailPage() {
       ═══════════════════════════════════════════════════════════════════ */}
       {activeTab === "gradebook" && gradebookData && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Early Warning Dashboard (For Lecturer / Admin) */}
-          {(isLecturer || isAdmin) && (
-            <div className="glass-panel rounded-3xl p-6 border-l-4 border-l-[#C9A05C] space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C9A05C]/20 text-[#C9A05C] border border-[#C9A05C]/40">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[#0A3266] dark:text-white">
-                    Early Warning System & Deteksi Risiko Mahasiswa
+          {/* Gradebook Visual Analytics & Early Warning Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Grade Distribution Bar Chart */}
+            <div className="md:col-span-2 glass-panel rounded-3xl p-6 border-l-4 border-l-[#C9A05C] flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-base font-bold text-[#0A3266] dark:text-white flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-[#C9A05C]" />
+                    <span>Distribusi Huruf Mutu Mahasiswa</span>
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Mendeteksi mahasiswa yang membutuhkan bimbingan khusus berdasarkan keaktifan forum dan tugas tertunda.
-                  </p>
+                  <span className="text-xs font-semibold text-slate-400">
+                    Rata-rata: {gradebookData.earlyWarningSummary?.averageClassScore || 0}
+                  </span>
                 </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  Sebaran capaian nilai akhir kelas (A s/d E)
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 border border-black/5 dark:border-white/5">
-                  <div className="text-xs font-bold text-slate-500">Rata-rata Nilai Kelas</div>
-                  <div className="text-2xl font-black text-[#0A3266] dark:text-[#ebd09e] mt-1">
-                    {gradebookData.earlyWarningSummary?.averageClassScore || 0}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 border border-black/5 dark:border-white/5">
-                  <div className="text-xs font-bold text-slate-500">Mahasiswa Berisiko (At-Risk)</div>
-                  <div className="text-2xl font-black text-rose-500 mt-1">
-                    {gradebookData.earlyWarningSummary?.totalAtRisk || 0} Mahasiswa
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] p-4 border border-black/5 dark:border-white/5">
-                  <div className="text-xs font-bold text-slate-500">Bobot Penilaian Standar</div>
-                  <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 font-semibold">
-                    Tugas 20% · Kuis 15% · Forum 15% · UTS 25% · UAS 25%
-                  </div>
-                </div>
-              </div>
+              <BarChart
+                data={[
+                  { label: "A", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "A").length, color: "#10B981" },
+                  { label: "AB", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "AB").length, color: "#3B82F6" },
+                  { label: "B", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "B").length, color: "#C9A05C" },
+                  { label: "BC", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "BC").length, color: "#F59E0B" },
+                  { label: "C", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "C").length, color: "#6366F1" },
+                  { label: "D", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "D").length, color: "#EC4899" },
+                  { label: "E", value: (gradebookData.gradebook || []).filter((r: any) => r.letterGrade === "E").length, color: "#EF4444" },
+                ]}
+                height={120}
+                valueSuffix=" Mhs"
+              />
             </div>
-          )}
+
+            {/* Early Warning Risk Gauge */}
+            <div className="glass-panel rounded-3xl p-6 border-l-4 border-l-rose-500 flex flex-col justify-between items-center text-center">
+              <div>
+                <div className="flex items-center justify-between mb-1 w-full">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#ebd09e] flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                    <span>Early Warning</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Mahasiswa yang memerlukan asistensi
+                </p>
+              </div>
+
+              <div className="py-2">
+                <StatGauge
+                  value={gradebookData.earlyWarningSummary?.totalAtRisk || 0}
+                  maxValue={gradebookData.gradebook?.length || 4}
+                  label="Mahasiswa At-Risk"
+                  subLabel="Tugas / Forum Tertunda"
+                  size={125}
+                  unit=" Mhs"
+                  statusBadge={gradebookData.earlyWarningSummary?.totalAtRisk > 0 ? "Perlu Tindakan" : "Kondisi Aman"}
+                  statusType={gradebookData.earlyWarningSummary?.totalAtRisk > 0 ? "danger" : "success"}
+                />
+              </div>
+
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Bobot: Tugas 20% · Kuis 15% · Forum 15% · UTS 25% · UAS 25%
+              </p>
+            </div>
+          </div>
 
           {/* Gradebook Matrix Table */}
           <div className="glass-panel rounded-3xl p-6 overflow-hidden">

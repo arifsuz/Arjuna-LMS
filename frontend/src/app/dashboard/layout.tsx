@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -18,8 +18,12 @@ import {
   X,
   Sparkles,
   BookOpen,
-  FileCheck,
-  ShieldAlert,
+  Calendar,
+  Search,
+  Bell,
+  Home,
+  Sliders,
+  CheckCircle2,
 } from "lucide-react";
 
 interface NavGroup {
@@ -50,6 +54,35 @@ function AppShellInner({ children }: { children: ReactNode }) {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  const isAdmin = user?.role === "ADMIN";
+  const isLecturer = user?.role === "LECTURER";
+  const isStudent = user?.role === "STUDENT";
+
+  // Dynamic Breadcrumb computation
+  const breadcrumbs = useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    const crumbs: { label: string; href: string }[] = [{ label: "Beranda", href: "/dashboard" }];
+
+    if (segments.includes("courses")) {
+      crumbs.push({ label: "Mata Kuliah", href: "/dashboard/courses" });
+      if (segments.length > 2) {
+        crumbs.push({ label: "Detail Kelas", href: pathname });
+      }
+    } else if (segments.includes("admin")) {
+      if (segments.includes("users")) {
+        crumbs.push({ label: "Administrasi", href: "/dashboard/admin/users" });
+        crumbs.push({ label: "Kelola Pengguna", href: "/dashboard/admin/users" });
+      } else if (segments.includes("courses")) {
+        crumbs.push({ label: "Administrasi", href: "/dashboard/admin/courses" });
+        crumbs.push({ label: "Kelola Mata Kuliah", href: "/dashboard/admin/courses" });
+      } else if (segments.includes("dataset")) {
+        crumbs.push({ label: "Pusat Riset", href: "/dashboard/admin/dataset" });
+        crumbs.push({ label: "Dataset & Analisis AI", href: "/dashboard/admin/dataset" });
+      }
+    }
+    return crumbs;
+  }, [pathname]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#FBF8F3] dark:bg-[#061a3b]">
@@ -59,7 +92,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
             <Loader2 className="h-8 w-8 animate-spin text-[#C9A05C]" />
           </div>
           <span className="text-xs font-semibold text-slate-500 dark:text-[#ebd09e] tracking-wider">
-            Menyiapkan Ruang Belajar...
+            Menyiapkan Ruang Belajar Terpadu...
           </span>
         </div>
       </div>
@@ -67,10 +100,6 @@ function AppShellInner({ children }: { children: ReactNode }) {
   }
 
   if (!user) return null;
-
-  const isAdmin = user.role === "ADMIN";
-  const isLecturer = user.role === "LECTURER";
-  const isStudent = user.role === "STUDENT";
 
   // Build role-based grouped navigation
   const navGroups: NavGroup[] = [];
@@ -178,7 +207,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[#FBF8F3] dark:bg-[#061a3b] text-[#0A3266] dark:text-[#FBF8F3] relative selection:bg-[#C9A05C]/30 selection:text-[#C9A05C] transition-colors duration-300">
-      {/* Mobile Top Header */}
+      {/* ═══ Mobile Top Header ═══ */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b border-black/10 dark:border-[#C9A05C]/25 bg-white/85 dark:bg-[#061a3b]/85 px-5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white p-1 shadow-md shadow-[#0A3266]/15 ring-1 ring-[#C9A05C]/40 overflow-hidden">
@@ -206,13 +235,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Sidebar (Desktop & Mobile Drawer) */}
+      {/* ═══ Sidebar Navigation (Desktop & Mobile Drawer) ═══ */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-black/10 dark:border-[#C9A05C]/25 bg-white/88 dark:bg-[#061a3b]/90 backdrop-blur-2xl transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-black/10 dark:border-[#C9A05C]/25 bg-white/90 dark:bg-[#061a3b]/92 backdrop-blur-2xl transition-transform duration-300 lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Brand Header with Official Logo */}
+        {/* Brand Header */}
         <div className="flex items-center gap-3.5 border-b border-black/10 dark:border-[#C9A05C]/20 px-6 py-5">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-lg shadow-[#0A3266]/20 ring-1 ring-[#C9A05C]/40 overflow-hidden">
             <Image
@@ -232,20 +261,20 @@ function AppShellInner({ children }: { children: ReactNode }) {
               <Sparkles className="h-3 w-3 text-[#C9A05C]" />
             </div>
             <p className="text-[11px] font-medium text-slate-500 dark:text-[#dbb779]">
-              {isAdmin ? "Pusat Administrasi & Riset" : isLecturer ? "Workspace Dosen Pengampu" : "Ruang Kolaborasi Kelas"}
+              {isAdmin ? "Pusat Administrasi & Riset" : isLecturer ? "Workspace Dosen Pengampu" : "Ruang Kolaborasi Kampus"}
             </p>
           </div>
         </div>
 
-        {/* ═══ Theme Switcher ═══ */}
+        {/* Theme Switcher Segmented Control */}
         <div className="px-5 pt-4 pb-1">
           <div className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]/75">
-            Pilihan Tema
+            Pilihan Tema Tampilan
           </div>
           <ThemeToggle variant="segmented" className="w-full" />
         </div>
 
-        {/* Navigation Menu by Authorization Groups */}
+        {/* Grouped Navigation Links */}
         <nav aria-label="Menu Utama" className="flex-1 space-y-4 px-4 py-4 overflow-y-auto no-scrollbar">
           {navGroups.map((group, gIdx) => (
             <div key={gIdx} className="space-y-1.5">
@@ -297,7 +326,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        {/* User Card & Clean Logout Button */}
+        {/* User Card & Logout Button */}
         <div className="border-t border-black/10 dark:border-[#C9A05C]/20 p-4 bg-black/[0.01] dark:bg-[#030d1d]/40 space-y-3">
           <div className="flex items-center gap-3.5 rounded-2xl bg-black/[0.03] dark:bg-[#0A3266]/30 p-3.5 border border-black/10 dark:border-[#C9A05C]/25 backdrop-blur-md">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#0A3266] to-[#C9A05C] font-bold text-white shadow-md shadow-[#0A3266]/20 text-sm">
@@ -329,18 +358,55 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Backdrop overlay for mobile menu */}
+      {/* ═══ Main Content Area & Sticky Top Bar ═══ */}
+      <div className="flex-1 lg:ml-72 flex flex-col min-w-0">
+        {/* Desktop Sticky Header Bar (HCI Breadcrumbs & Quick Context) */}
+        <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-between border-b border-black/10 dark:border-[#C9A05C]/20 bg-white/75 dark:bg-[#061a3b]/75 px-8 backdrop-blur-xl">
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <Home className="h-3.5 w-3.5 text-[#C9A05C]" />
+            {breadcrumbs.map((crumb, idx) => (
+              <span key={crumb.href} className="flex items-center gap-2">
+                {idx > 0 && <ChevronRight className="h-3 w-3 text-slate-400" />}
+                <Link
+                  href={crumb.href}
+                  className={`hover:text-[#0A3266] dark:hover:text-[#ebd09e] transition-colors ${
+                    idx === breadcrumbs.length - 1 ? "font-bold text-[#0A3266] dark:text-white" : ""
+                  }`}
+                >
+                  {crumb.label}
+                </Link>
+              </span>
+            ))}
+          </div>
+
+          {/* Quick Context Indicator Pills */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] px-3 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <Calendar className="h-3.5 w-3.5 text-[#C9A05C]" />
+              <span>Semester 2026/2027 Ganjil</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Sistem Aktif</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Page Content */}
+        <main className="flex-1 p-5 sm:p-8 pt-20 lg:pt-8 min-w-0 overflow-x-hidden">
+          <div className="animate-fade-in mx-auto max-w-7xl">{children}</div>
+        </main>
+      </div>
+
+      {/* Mobile Backdrop Overlay */}
       {mobileMenuOpen && (
         <div
           onClick={() => setMobileMenuOpen(false)}
           className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
         />
       )}
-
-      {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 p-5 sm:p-8 pt-20 lg:pt-8 min-w-0 overflow-x-hidden">
-        <div className="animate-fade-in mx-auto max-w-6xl">{children}</div>
-      </main>
     </div>
   );
 }
