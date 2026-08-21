@@ -526,7 +526,7 @@ function CourseDetailContent() {
               <span className="text-slate-400">·</span>
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                 <Users className="h-3.5 w-3.5 text-[#C9A05C]" />
-                <span>{course._count?.enrollments || 4} Mahasiswa Terdaftar</span>
+                <span>{course._count?.enrollments || 0} Mahasiswa Terdaftar</span>
               </div>
             </div>
           </div>
@@ -1406,7 +1406,7 @@ function CourseDetailContent() {
               <div className="py-2">
                 <StatGauge
                   value={gradebookData.earlyWarningSummary?.totalAtRisk || 0}
-                  maxValue={gradebookData.gradebook?.length || 4}
+                  maxValue={Math.max(gradebookData.gradebook?.length || 0, 1)}
                   label="Mahasiswa At-Risk"
                   subLabel="Tugas / Forum Tertunda"
                   size={125}

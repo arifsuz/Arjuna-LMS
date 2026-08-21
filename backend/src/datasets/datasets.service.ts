@@ -423,18 +423,80 @@ export class DatasetsService {
    * Get summary statistics of collected data for research monitoring
    */
   async getSummary() {
-    const [totalCourses, totalThreads, totalMessages, totalOpinions, totalLabels] =
-      await Promise.all([
-        this.prisma.course.count(),
-        this.prisma.thread.count(),
-        this.prisma.threadMessage.count(),
-        this.prisma.opinion.count(),
-        this.prisma.datasetLabel.count(),
-      ]);
+    const [
+      totalCourses,
+      totalThreads,
+      totalMessages,
+      totalOpinions,
+      totalLabels,
+      labels,
+    ] = await Promise.all([
+      this.prisma.course.count(),
+      this.prisma.thread.count(),
+      this.prisma.threadMessage.count(),
+      this.prisma.opinion.count(),
+      this.prisma.datasetLabel.count(),
+      this.prisma.datasetLabel.findMany({
+        select: {
+          studentEmotion: true,
+          studentSentiment: true,
+          qaRelevance: true,
+          afRelevance: true,
+          feedbackNovelty: true,
+          interactionQuality: true,
+        },
+      }),
+    ]);
 
     const answersCount = await this.prisma.threadMessage.count({
       where: { type: MessageType.ANSWER },
     });
+
+    const emotionCounts: Record<string, number> = {
+      Happiness: 0,
+      Anger: 0,
+      Fear: 0,
+      Disgust: 0,
+      Sadness: 0,
+    };
+    const sentimentCounts: Record<string, number> = {
+      Positif: 0,
+      Negatif: 0,
+    };
+
+    let sumQaRelevance = 0;
+    let sumAfRelevance = 0;
+    let sumFeedbackNovelty = 0;
+    let sumInteractionQuality = 0;
+    let scoredQaCount = 0;
+    let scoredAfCount = 0;
+    let scoredNoveltyCount = 0;
+    let scoredQualityCount = 0;
+
+    for (const l of labels) {
+      if (l.studentEmotion && emotionCounts[l.studentEmotion] !== undefined) {
+        emotionCounts[l.studentEmotion]++;
+      }
+      if (l.studentSentiment && sentimentCounts[l.studentSentiment] !== undefined) {
+        sentimentCounts[l.studentSentiment]++;
+      }
+      if (l.qaRelevance !== null && l.qaRelevance !== undefined) {
+        sumQaRelevance += l.qaRelevance;
+        scoredQaCount++;
+      }
+      if (l.afRelevance !== null && l.afRelevance !== undefined) {
+        sumAfRelevance += l.afRelevance;
+        scoredAfCount++;
+      }
+      if (l.feedbackNovelty !== null && l.feedbackNovelty !== undefined) {
+        sumFeedbackNovelty += l.feedbackNovelty;
+        scoredNoveltyCount++;
+      }
+      if (l.interactionQuality !== null && l.interactionQuality !== undefined) {
+        sumInteractionQuality += l.interactionQuality;
+        scoredQualityCount++;
+      }
+    }
 
     return {
       totalCourses,
@@ -447,6 +509,12 @@ export class DatasetsService {
         totalThreads > 0
           ? Math.min(100, Math.round((answersCount / (totalThreads * 4)) * 100))
           : 0,
+      emotionCounts,
+      sentimentCounts,
+      avgQaRelevance: scoredQaCount > 0 ? Number((sumQaRelevance / scoredQaCount).toFixed(2)) : 0,
+      avgAfRelevance: scoredAfCount > 0 ? Number((sumAfRelevance / scoredAfCount).toFixed(2)) : 0,
+      avgFeedbackNovelty: scoredNoveltyCount > 0 ? Number((sumFeedbackNovelty / scoredNoveltyCount).toFixed(2)) : 0,
+      avgInteractionQuality: scoredQualityCount > 0 ? Number((sumInteractionQuality / scoredQualityCount).toFixed(2)) : 0,
     };
   }
 

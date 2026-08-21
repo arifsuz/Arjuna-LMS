@@ -433,16 +433,16 @@ export default function AdminDatasetPage() {
 
               <DonutChart
                 data={[
-                  { label: "Happiness", value: stats.emotionCounts?.Happiness || 6, color: "#10B981" },
-                  { label: "Anger", value: stats.emotionCounts?.Anger || 1, color: "#EF4444" },
-                  { label: "Fear", value: stats.emotionCounts?.Fear || 1, color: "#8B5CF6" },
-                  { label: "Disgust", value: stats.emotionCounts?.Disgust || 1, color: "#F59E0B" },
-                  { label: "Sadness", value: stats.emotionCounts?.Sadness || 1, color: "#3B82F6" },
+                  { label: "Happiness", value: stats.emotionCounts?.Happiness || 0, color: "#10B981" },
+                  { label: "Anger", value: stats.emotionCounts?.Anger || 0, color: "#EF4444" },
+                  { label: "Fear", value: stats.emotionCounts?.Fear || 0, color: "#8B5CF6" },
+                  { label: "Disgust", value: stats.emotionCounts?.Disgust || 0, color: "#F59E0B" },
+                  { label: "Sadness", value: stats.emotionCounts?.Sadness || 0, color: "#3B82F6" },
                 ]}
                 size={160}
                 thickness={20}
                 centerLabel="Total Sampel"
-                centerValue={stats.totalLabels || 10}
+                centerValue={stats.totalLabels || 0}
               />
             </div>
 
@@ -465,13 +465,17 @@ export default function AdminDatasetPage() {
 
               <DonutChart
                 data={[
-                  { label: "Positif", value: stats.sentimentCounts?.Positif || 8, color: "#10B981" },
-                  { label: "Negatif", value: stats.sentimentCounts?.Negatif || 2, color: "#EF4444" },
+                  { label: "Positif", value: stats.sentimentCounts?.Positif || 0, color: "#10B981" },
+                  { label: "Negatif", value: stats.sentimentCounts?.Negatif || 0, color: "#EF4444" },
                 ]}
                 size={160}
                 thickness={20}
                 centerLabel="Sentimen"
-                centerValue={`${Math.round(((stats.sentimentCounts?.Positif || 8) / ((stats.sentimentCounts?.Positif || 8) + (stats.sentimentCounts?.Negatif || 2))) * 100)}%`}
+                centerValue={
+                  ((stats.sentimentCounts?.Positif || 0) + (stats.sentimentCounts?.Negatif || 0)) > 0
+                    ? `${Math.round(((stats.sentimentCounts?.Positif || 0) / ((stats.sentimentCounts?.Positif || 0) + (stats.sentimentCounts?.Negatif || 0))) * 100)}%`
+                    : "0%"
+                }
               />
             </div>
 
@@ -494,40 +498,40 @@ export default function AdminDatasetPage() {
 
               <div className="grid grid-cols-2 gap-2 py-2">
                 <StatGauge
-                  value={0.94}
+                  value={stats.avgQaRelevance || 0}
                   maxValue={1}
                   label="Q-A Relevance"
                   size={110}
                   unit=""
-                  statusBadge="Tinggi"
-                  statusType="success"
+                  statusBadge={stats.avgQaRelevance ? "Tinggi" : "Belum Ada"}
+                  statusType={stats.avgQaRelevance ? "success" : "info"}
                 />
                 <StatGauge
-                  value={0.96}
+                  value={stats.avgAfRelevance || 0}
                   maxValue={1}
                   label="A-F Relevance"
                   size={110}
                   unit=""
-                  statusBadge="Tinggi"
-                  statusType="success"
+                  statusBadge={stats.avgAfRelevance ? "Tinggi" : "Belum Ada"}
+                  statusType={stats.avgAfRelevance ? "success" : "info"}
                 />
                 <StatGauge
-                  value={0.82}
+                  value={stats.avgFeedbackNovelty || 0}
                   maxValue={1}
                   label="Novelty"
                   size={110}
                   unit=""
-                  statusBadge="Baik"
-                  statusType="gold"
+                  statusBadge={stats.avgFeedbackNovelty ? "Baik" : "Belum Ada"}
+                  statusType={stats.avgFeedbackNovelty ? "gold" : "info"}
                 />
                 <StatGauge
-                  value={0.93}
+                  value={stats.avgInteractionQuality || 0}
                   maxValue={1}
                   label="Quality"
                   size={110}
                   unit=""
-                  statusBadge="Tinggi"
-                  statusType="gold"
+                  statusBadge={stats.avgInteractionQuality ? "Tinggi" : "Belum Ada"}
+                  statusType={stats.avgInteractionQuality ? "gold" : "info"}
                 />
               </div>
             </div>

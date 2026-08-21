@@ -94,16 +94,16 @@ export default function DashboardPage() {
 
   // Data for Charts
   const emotionChartData = [
-    { label: "Happiness", value: datasetStats?.emotionCounts?.Happiness || 6, color: "#10B981" },
-    { label: "Anger", value: datasetStats?.emotionCounts?.Anger || 1, color: "#EF4444" },
-    { label: "Fear", value: datasetStats?.emotionCounts?.Fear || 1, color: "#8B5CF6" },
-    { label: "Disgust", value: datasetStats?.emotionCounts?.Disgust || 1, color: "#F59E0B" },
-    { label: "Sadness", value: datasetStats?.emotionCounts?.Sadness || 1, color: "#3B82F6" },
+    { label: "Happiness", value: datasetStats?.emotionCounts?.Happiness || 0, color: "#10B981" },
+    { label: "Anger", value: datasetStats?.emotionCounts?.Anger || 0, color: "#EF4444" },
+    { label: "Fear", value: datasetStats?.emotionCounts?.Fear || 0, color: "#8B5CF6" },
+    { label: "Disgust", value: datasetStats?.emotionCounts?.Disgust || 0, color: "#F59E0B" },
+    { label: "Sadness", value: datasetStats?.emotionCounts?.Sadness || 0, color: "#3B82F6" },
   ];
 
   const courseEnrollmentBarData = courseList.map((c) => ({
     label: c.code,
-    value: c._count?.enrollments || 4,
+    value: c._count?.enrollments || 0,
     color: "#C9A05C",
   }));
 
@@ -377,7 +377,7 @@ export default function DashboardPage() {
                 size={160}
                 thickness={20}
                 centerLabel="Total Anotasi"
-                centerValue={datasetStats?.totalLabeled || emotionChartData.reduce((a, b) => a + b.value, 0)}
+                centerValue={datasetStats?.totalLabels ?? 0}
               />
             </div>
 
@@ -400,24 +400,24 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-around py-2">
                 <StatGauge
-                  value={0.92}
+                  value={datasetStats?.avgInteractionQuality || 0}
                   maxValue={1}
                   label="Kualitas Interaksi"
                   subLabel="Rata-rata Skor"
                   size={115}
                   unit=""
-                  statusBadge="Sangat Baik"
-                  statusType="gold"
+                  statusBadge={datasetStats?.avgInteractionQuality ? (datasetStats.avgInteractionQuality >= 0.8 ? "Sangat Baik" : "Cukup") : "Belum Ada Data"}
+                  statusType={datasetStats?.avgInteractionQuality ? "gold" : "info"}
                 />
                 <StatGauge
-                  value={0.94}
+                  value={datasetStats?.avgQaRelevance || 0}
                   maxValue={1}
                   label="Q-A Relevance"
                   subLabel="Semantik Similarity"
                   size={115}
                   unit=""
-                  statusBadge="Tinggi"
-                  statusType="success"
+                  statusBadge={datasetStats?.avgQaRelevance ? (datasetStats.avgQaRelevance >= 0.8 ? "Tinggi" : "Cukup") : "Belum Ada Data"}
+                  statusType={datasetStats?.avgQaRelevance ? "success" : "info"}
                 />
               </div>
 
@@ -427,14 +427,14 @@ export default function DashboardPage() {
                     <ThumbsUp className="h-3 w-3" />
                     <span>Positif</span>
                   </span>
-                  <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Positif || 8}</span>
+                  <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Positif || 0}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-rose-500/10 p-2 text-rose-700 dark:text-rose-300">
                   <span className="flex items-center gap-1.5">
                     <ThumbsDown className="h-3 w-3" />
                     <span>Negatif</span>
                   </span>
-                  <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Negatif || 2}</span>
+                  <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Negatif || 0}</span>
                 </div>
               </div>
             </div>
