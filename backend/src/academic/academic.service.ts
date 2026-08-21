@@ -228,7 +228,7 @@ export class AcademicService {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 4. ANNOUNCEMENTS & STUDY GROUPS
+  // 4. ANNOUNCEMENTS & BROADCAST NOTIFICATIONS
   // ══════════════════════════════════════════════════════════════════════════
 
   async getAnnouncements(courseId?: string) {
@@ -240,6 +240,7 @@ export class AcademicService {
       where,
       include: {
         author: { select: { id: true, name: true, role: true } },
+        course: { select: { id: true, code: true, name: true } },
       },
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
     });
@@ -261,8 +262,95 @@ export class AcademicService {
       },
       include: {
         author: { select: { id: true, name: true, role: true } },
+        course: { select: { id: true, code: true, name: true } },
       },
     });
+  }
+
+  async updateAnnouncement(id: string, userId: string, userRole: Role, data: any) {
+    const ann = await this.prisma.announcement.findUnique({ where: { id } });
+    if (!ann) throw new NotFoundException('Pengumuman tidak ditemukan');
+    if (userRole !== Role.ADMIN && ann.authorId !== userId) {
+      throw new ForbiddenException('Tidak memiliki hak akses');
+    }
+    return this.prisma.announcement.update({
+      where: { id },
+      data: {
+        title: data.title !== undefined ? data.title : ann.title,
+        content: data.content !== undefined ? data.content : ann.content,
+        isPinned: data.isPinned !== undefined ? data.isPinned : ann.isPinned,
+        priority: data.priority !== undefined ? data.priority : ann.priority,
+      },
+      include: {
+        author: { select: { id: true, name: true, role: true } },
+        course: { select: { id: true, code: true, name: true } },
+      },
+    });
+  }
+
+  async deleteAnnouncement(id: string, userId: string, userRole: Role) {
+    const ann = await this.prisma.announcement.findUnique({ where: { id } });
+    if (!ann) throw new NotFoundException('Pengumuman tidak ditemukan');
+    if (userRole !== Role.ADMIN && ann.authorId !== userId) {
+      throw new ForbiddenException('Tidak memiliki hak akses');
+    }
+    await this.prisma.announcement.delete({ where: { id } });
+    return { success: true, message: 'Pengumuman berhasil dihapus' };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SYSTEM SETTINGS & ACADEMIC CONFIGURATION (ADMIN EXCLUSIVE)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private defaultSettings = {
+    activeTerm: '2026/2027 Ganjil',
+    registrationOpen: true,
+    turnitinMaxSimilarity: 20,
+    turnitinExcludeQuotes: true,
+    turnitinExcludeBibliography: true,
+    assessmentWeights: {
+      assignments: 20,
+      quizzes: 15,
+      forum: 15,
+      midterm: 25,
+      finalExam: 25,
+    },
+    aiAnnotation: {
+      autoLabelOnThreadClose: true,
+      sentimentConfidenceThreshold: 0.8,
+      emotionConfidenceThreshold: 0.75,
+      weights: { alpha: 0.4, beta: 0.3, gamma: 0.3 },
+    },
+    institution: {
+      campusName: 'Universitas Arjuna (ARJUNA-LMS)',
+      facultyName: 'Fakultas Ilmu Komputer & Teknologi Informasi',
+      contactEmail: 'akademik@arjuna-lms.ac.id',
+      lmsVersion: 'v2.5.0-Enterprise',
+    },
+  };
+
+  async getAdminSettings() {
+    return this.defaultSettings;
+  }
+
+  async updateAdminSettings(dto: any) {
+    this.defaultSettings = {
+      ...this.defaultSettings,
+      ...dto,
+      assessmentWeights: {
+        ...this.defaultSettings.assessmentWeights,
+        ...(dto.assessmentWeights || {}),
+      },
+      aiAnnotation: {
+        ...this.defaultSettings.aiAnnotation,
+        ...(dto.aiAnnotation || {}),
+      },
+      institution: {
+        ...this.defaultSettings.institution,
+        ...(dto.institution || {}),
+      },
+    };
+    return this.defaultSettings;
   }
 
   async getStudyGroups(courseId: string) {

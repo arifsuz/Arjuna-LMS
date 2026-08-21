@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { academic as academicApi } from "@/lib/api";
 import {
   LayoutDashboard,
   Users,
@@ -24,6 +25,11 @@ import {
   Home,
   Sliders,
   CheckCircle2,
+  Megaphone,
+  Radio,
+  Pin,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 
 interface NavGroup {
@@ -43,15 +49,32 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Notification Bell Dropdown state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([]);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [loading, user, router]);
 
-  // Close mobile menu on path change
+  // Load announcements for notification dropdown
+  useEffect(() => {
+    if (user) {
+      academicApi
+        .getGeneralAnnouncements()
+        .then((data) => {
+          if (Array.isArray(data)) setRecentBroadcasts(data.slice(0, 5));
+        })
+        .catch(() => {});
+    }
+  }, [user, pathname]);
+
+  // Close mobile menu & notifications on path change
   useEffect(() => {
     setMobileMenuOpen(false);
+    setShowNotifications(false);
   }, [pathname]);
 
   const isAdmin = user?.role === "ADMIN";
@@ -75,6 +98,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
       } else if (segments.includes("courses")) {
         crumbs.push({ label: "Administrasi", href: "/dashboard/admin/courses" });
         crumbs.push({ label: "Kelola Mata Kuliah", href: "/dashboard/admin/courses" });
+      } else if (segments.includes("announcements")) {
+        crumbs.push({ label: "Pusat Kontrol", href: "/dashboard/admin/announcements" });
+        crumbs.push({ label: "Kelola Pengumuman", href: "/dashboard/admin/announcements" });
+      } else if (segments.includes("settings")) {
+        crumbs.push({ label: "Administrasi", href: "/dashboard/admin/settings" });
+        crumbs.push({ label: "Pengaturan Sistem", href: "/dashboard/admin/settings" });
       } else if (segments.includes("dataset")) {
         crumbs.push({ label: "Pusat Riset", href: "/dashboard/admin/dataset" });
         crumbs.push({ label: "Dataset & Analisis AI", href: "/dashboard/admin/dataset" });
@@ -116,6 +145,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
             exact: true,
             description: "Ringkasan metrik & aktivitas kampus",
           },
+          {
+            href: "/dashboard/admin/announcements",
+            label: "Kelola Pengumuman & Broadcast",
+            icon: Megaphone,
+            exact: false,
+            description: "Broadcast notifikasi ke seluruh sivitas",
+          },
         ],
       },
       {
@@ -134,6 +170,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
             icon: Users,
             exact: false,
             description: "Manajemen akun dosen & mahasiswa",
+          },
+          {
+            href: "/dashboard/admin/settings",
+            label: "Pengaturan Sistem & Kebijakan",
+            icon: Sliders,
+            exact: false,
+            description: "Semester aktif, bobot nilai & Turnitin",
           },
         ],
       },
@@ -360,7 +403,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
       {/* ═══ Main Content Area & Sticky Top Bar ═══ */}
       <div className="flex-1 lg:ml-72 flex flex-col min-w-0">
-        {/* Desktop Sticky Header Bar (HCI Breadcrumbs & Quick Context) */}
+        {/* Desktop Sticky Header Bar (HCI Breadcrumbs & Notification Bell) */}
         <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-between border-b border-black/10 dark:border-[#C9A05C]/20 bg-white/75 dark:bg-[#061a3b]/75 px-8 backdrop-blur-xl">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -380,8 +423,79 @@ function AppShellInner({ children }: { children: ReactNode }) {
             ))}
           </div>
 
-          {/* Quick Context Indicator Pills */}
-          <div className="flex items-center gap-3">
+          {/* Right Header Controls: Notification Bell, Term, Status */}
+          <div className="flex items-center gap-3 relative">
+            {/* Notification Bell with Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] text-slate-600 dark:text-slate-300 hover:text-[#0A3266] dark:hover:text-[#C9A05C] transition-colors"
+                title="Pemberitahuan & Broadcast Kampus"
+              >
+                <Bell className="h-4 w-4" />
+                {recentBroadcasts.length > 0 && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#C9A05C] ring-2 ring-white dark:ring-[#061a3b] animate-pulse" />
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl glass-panel p-4 shadow-2xl border border-[#C9A05C]/40 z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="h-4 w-4 text-[#C9A05C]" />
+                      <span className="text-xs font-bold text-[#0A3266] dark:text-white">
+                        Pengumuman & Broadcast
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <Link
+                        href="/dashboard/admin/announcements"
+                        className="text-[10px] font-bold text-[#C9A05C] hover:underline"
+                      >
+                        Kelola
+                      </Link>
+                    )}
+                  </div>
+
+                  {recentBroadcasts.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">
+                      Belum ada pengumuman terbaru.
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto no-scrollbar">
+                      {recentBroadcasts.map((b) => (
+                        <div
+                          key={b.id}
+                          className={`rounded-2xl p-3 text-xs border ${
+                            b.priority === "URGENT"
+                              ? "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-200"
+                              : b.isPinned
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
+                                : "bg-black/[0.02] dark:bg-white/[0.04] border-black/5 dark:border-white/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="font-bold truncate text-[#0A3266] dark:text-white">
+                              {b.title}
+                            </span>
+                            {b.isPinned && <Pin className="h-3 w-3 text-amber-500 shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                            {b.content}
+                          </p>
+                          <div className="mt-1.5 text-[9px] text-slate-400 flex items-center justify-between">
+                            <span>{b.course?.code || "Broadcast Kampus"}</span>
+                            <span>{new Date(b.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] px-3 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
               <Calendar className="h-3.5 w-3.5 text-[#C9A05C]" />
               <span>Semester 2026/2027 Ganjil</span>

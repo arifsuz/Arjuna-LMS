@@ -262,14 +262,24 @@ export const academic = {
   createMeeting: (courseId: string, data: any) =>
     request(`/courses/${courseId}/meetings`, { method: "POST", json: data }),
 
-  // Announcements & Groups
+  // Announcements & Broadcast Notifications
   getCourseAnnouncements: (courseId: string) => request<any[]>(`/courses/${courseId}/announcements`),
-  getGeneralAnnouncements: () => request<any[]>("/announcements"),
+  getGeneralAnnouncements: (courseId?: string) =>
+    request<any[]>(courseId ? `/announcements?courseId=${courseId}` : "/announcements"),
   createAnnouncement: (courseId: string | undefined, data: any) =>
-    request(courseId ? `/courses/${courseId}/announcements` : "/courses/undefined/announcements", {
+    request(courseId ? `/courses/${courseId}/announcements` : "/announcements", {
       method: "POST",
       json: data,
     }),
+  updateAnnouncement: (id: string, data: any) =>
+    request(`/announcements/${id}`, { method: "PATCH", json: data }),
+  deleteAnnouncement: (id: string) =>
+    request(`/announcements/${id}`, { method: "DELETE" }),
+
+  // Admin Settings & Academic Config
+  getSettings: () => request<any>("/admin/settings"),
+  updateSettings: (data: any) =>
+    request<any>("/admin/settings", { method: "PATCH", json: data }),
   getStudyGroups: (courseId: string) => request<any[]>(`/courses/${courseId}/groups`),
 
   // Assignments

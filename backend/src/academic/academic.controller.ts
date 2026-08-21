@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -112,8 +113,16 @@ export class AcademicController {
   }
 
   @Get('announcements')
-  getGeneralAnnouncements() {
-    return this.academicService.getAnnouncements();
+  getGeneralAnnouncements(@Query('courseId') courseId?: string) {
+    return this.academicService.getAnnouncements(courseId);
+  }
+
+  @Post('announcements')
+  createGlobalAnnouncement(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateAnnouncementDto,
+  ) {
+    return this.academicService.createAnnouncement(undefined, userId, dto);
   }
 
   @Post('courses/:courseId/announcements')
@@ -123,6 +132,38 @@ export class AcademicController {
     @Body() dto: CreateAnnouncementDto,
   ) {
     return this.academicService.createAnnouncement(courseId, userId, dto);
+  }
+
+  @Patch('announcements/:id')
+  updateAnnouncement(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: Role,
+    @Body() dto: any,
+  ) {
+    return this.academicService.updateAnnouncement(id, userId, userRole, dto);
+  }
+
+  @Delete('announcements/:id')
+  deleteAnnouncement(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    return this.academicService.deleteAnnouncement(id, userId, userRole);
+  }
+
+  // 6. Admin System Settings & Academic Configurations
+  @Get('admin/settings')
+  @Roles(Role.ADMIN)
+  getAdminSettings() {
+    return this.academicService.getAdminSettings();
+  }
+
+  @Patch('admin/settings')
+  @Roles(Role.ADMIN)
+  updateAdminSettings(@Body() dto: any) {
+    return this.academicService.updateAdminSettings(dto);
   }
 
   @Get('courses/:courseId/groups')
