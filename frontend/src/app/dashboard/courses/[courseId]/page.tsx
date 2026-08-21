@@ -146,6 +146,24 @@ function CourseDetailContent() {
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any | null>(null);
 
+  // Tab 5: Quiz Authoring (Lecturer & Admin)
+  const [showAddQuizModal, setShowAddQuizModal] = useState(false);
+  const [newQuizTitle, setNewQuizTitle] = useState("");
+  const [newQuizDesc, setNewQuizDesc] = useState("");
+  const [newQuizDuration, setNewQuizDuration] = useState(30);
+  const [newQuizPassingScore, setNewQuizPassingScore] = useState(70);
+  const [newQuizWeight, setNewQuizWeight] = useState(15);
+  const [newQuizQuestions, setNewQuizQuestions] = useState<any[]>([
+    {
+      questionText: "",
+      questionType: "MULTIPLE_CHOICE",
+      options: ["", "", "", ""],
+      correctOptionIndex: 0,
+      points: 10,
+    },
+  ]);
+  const [creatingQuiz, setCreatingQuiz] = useState(false);
+
   // Tab 6: Gradebook & Early Warning
   const [gradebookData, setGradebookData] = useState<any | null>(null);
 
@@ -363,6 +381,60 @@ function CourseDetailContent() {
       alert(err.message || "Gagal mengirim jawaban kuis");
     } finally {
       setSubmittingQuiz(false);
+    }
+  };
+
+  // Handler: Create Quiz (Lecturer / Admin)
+  const handleCreateQuiz = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newQuizTitle.trim()) return;
+
+    const validQuestions = newQuizQuestions
+      .filter((q) => q.questionText.trim() !== "")
+      .map((q) => ({
+        questionText: q.questionText,
+        questionType: q.questionType,
+        options:
+          q.questionType === "MULTIPLE_CHOICE"
+            ? q.options.filter((o: string) => o.trim() !== "")
+            : [],
+        correctOptionIndex: q.correctOptionIndex ?? 0,
+        points: Number(q.points) || 10,
+      }));
+
+    if (validQuestions.length === 0) {
+      alert("Harap tambahkan minimal 1 butir soal.");
+      return;
+    }
+
+    setCreatingQuiz(true);
+    try {
+      await academicApi.createQuiz(courseId, {
+        title: newQuizTitle,
+        description: newQuizDesc || undefined,
+        durationMinutes: Number(newQuizDuration) || 30,
+        passingScore: Number(newQuizPassingScore) || 70,
+        weightPercentage: Number(newQuizWeight) || 15,
+        questions: validQuestions,
+      });
+
+      setShowAddQuizModal(false);
+      setNewQuizTitle("");
+      setNewQuizDesc("");
+      setNewQuizQuestions([
+        {
+          questionText: "",
+          questionType: "MULTIPLE_CHOICE",
+          options: ["", "", "", ""],
+          correctOptionIndex: 0,
+          points: 10,
+        },
+      ]);
+      loadAll();
+    } catch (err: any) {
+      alert(err.message || "Gagal membuat kuis baru.");
+    } finally {
+      setCreatingQuiz(false);
     }
   };
 
@@ -1170,70 +1242,111 @@ function CourseDetailContent() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-[#0A3266] dark:text-white">
-                Mesin Kuis & Ujian Daring (Quiz Engine)
+                Mesin Kuis & Evaluasi Daring (Quiz Engine)
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Pengerjaan kuis pilihan ganda & esai dengan batas waktu dan penilaian instan.
+                Penyusunan dan pengerjaan kuis pilihan ganda & esai dengan batas waktu serta penilaian otomatis.
               </p>
             </div>
+
+            {(isLecturer || isAdmin) && (
+              <button
+                onClick={() => setShowAddQuizModal(true)}
+                className="glass-button-primary flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold shadow-lg"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Buat Paket Kuis Baru</span>
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quizzes.map((q: any) => {
-              const myAtt = q.myAttempt;
-
-              return (
-                <div
-                  key={q.id}
-                  className="glass-card rounded-3xl p-6 flex flex-col justify-between border-l-4 border-l-purple-500"
+          {quizzes.length === 0 ? (
+            <div className="glass-panel rounded-3xl p-12 text-center border border-black/10 dark:border-[#C9A05C]/20">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                <HelpCircle className="h-7 w-7" />
+              </div>
+              <h3 className="text-base font-bold text-[#0A3266] dark:text-[#FBF8F3]">
+                Belum Ada Paket Kuis Dibuat
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-[#ebd09e]/70 max-w-md mx-auto">
+                {isLecturer || isAdmin
+                  ? "Anda belum mempublikasikan paket kuis evaluasi untuk mata kuliah ini. Klik tombol di bawah untuk membuat kuis baru."
+                  : "Dosen pengampu belum mempublikasikan kuis daring untuk kelas ini."}
+              </p>
+              {(isLecturer || isAdmin) && (
+                <button
+                  onClick={() => setShowAddQuizModal(true)}
+                  className="glass-button-primary inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-lg mt-5"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="rounded-xl bg-purple-500/20 px-3 py-1 text-xs font-bold text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                        {q.questionsCount} Soal · {q.durationMinutes} Menit
-                      </span>
-                      <span className="text-xs font-bold text-[#8c6828] dark:text-[#ebd09e]">
-                        Passing: {q.passingScore}%
-                      </span>
-                    </div>
+                  <Plus className="h-4 w-4" />
+                  <span>Buat Paket Kuis Sekarang</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {quizzes.map((q: any) => {
+                const myAtt = q.myAttempt;
 
-                    <h3 className="text-base font-bold text-[#0A3266] dark:text-white">
-                      {q.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {q.description || "Pengujian pemahaman materi bab perkuliahan."}
-                    </p>
-                  </div>
-
-                  <div className="mt-6 flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
-                    {myAtt ? (
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-xl bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                          Skor: {myAtt.score} / 100 {myAtt.isPassed ? "(Lulus)" : "(Remedial)"}
+                return (
+                  <div
+                    key={q.id}
+                    className="glass-card rounded-3xl p-6 flex flex-col justify-between border-l-4 border-l-purple-500"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="rounded-xl bg-purple-500/20 px-3 py-1 text-xs font-bold text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                          {q.questionsCount || q.questions?.length || 0} Soal · {q.durationMinutes} Menit
+                        </span>
+                        <span className="text-xs font-bold text-[#8c6828] dark:text-[#ebd09e]">
+                          Passing: {q.passingScore}% · Bobot: {q.weightPercentage || 15}%
                         </span>
                       </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">Belum Dikerjakan</span>
-                    )}
 
-                    {isStudent && (
-                      <button
-                        onClick={async () => {
-                          const details = await academicApi.getQuizDetails(q.id);
-                          setActiveQuizToTake(details);
-                          setQuizAnswers({});
-                          setQuizResult(null);
-                        }}
-                        className="glass-button-gold rounded-xl px-4 py-2 text-xs font-bold shadow-md"
-                      >
-                        {myAtt ? "Kerjakan Ulang" : "Mulai Kerjakan Kuis"}
-                      </button>
-                    )}
+                      <h3 className="text-base font-bold text-[#0A3266] dark:text-white">
+                        {q.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {q.description || "Pengujian pemahaman materi bab perkuliahan."}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
+                      {isStudent ? (
+                        myAtt ? (
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-xl bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                              Skor: {myAtt.score} / 100 {myAtt.isPassed ? "(Lulus)" : "(Remedial)"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 font-medium">Belum Dikerjakan</span>
+                        )
+                      ) : (
+                        <span className="text-xs font-bold text-purple-600 dark:text-purple-300">
+                          Kuis Aktif untuk Mahasiswa
+                        </span>
+                      )}
+
+                      {isStudent && (
+                        <button
+                          onClick={async () => {
+                            const details = await academicApi.getQuizDetails(q.id);
+                            setActiveQuizToTake(details);
+                            setQuizAnswers({});
+                            setQuizResult(null);
+                          }}
+                          className="glass-button-gold rounded-xl px-4 py-2 text-xs font-bold shadow-md"
+                        >
+                          {myAtt ? "Kerjakan Ulang" : "Mulai Kerjakan Kuis"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -2192,6 +2305,273 @@ function CourseDetailContent() {
                 className="glass-button-primary rounded-xl px-5 py-2 text-xs font-bold shadow-lg"
               >
                 {savingGrade ? "Menyimpan..." : "Simpan & Rilis Nilai"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL: ADD QUIZ & QUESTIONS (LECTURER / ADMIN)
+      ═══════════════════════════════════════════════════════════════════ */}
+      {showAddQuizModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <form
+            onSubmit={handleCreateQuiz}
+            className="glass-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#C9A05C]/50 space-y-5"
+          >
+            <div className="flex items-center justify-between border-b border-black/10 dark:border-[#C9A05C]/20 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#8c6828] dark:text-[#ebd09e]">
+                  Evaluasi Daring
+                </span>
+                <h3 className="text-base font-bold text-[#0A3266] dark:text-white">
+                  Buat Paket Kuis Perkuliahan Baru
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddQuizModal(false)}
+                className="rounded-xl p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Quiz General Info */}
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-[#ebd09e]">
+                  Judul Kuis / Evaluasi *
+                </label>
+                <input
+                  type="text"
+                  value={newQuizTitle}
+                  onChange={(e) => setNewQuizTitle(e.target.value)}
+                  placeholder="Contoh: Kuis 01: Logika Pemrograman & Kompleksitas"
+                  required
+                  className="glass-input w-full rounded-2xl px-4 py-2.5 text-xs font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-[#ebd09e]">
+                  Deskripsi / Petunjuk Pengerjaan
+                </label>
+                <textarea
+                  value={newQuizDesc}
+                  onChange={(e) => setNewQuizDesc(e.target.value)}
+                  placeholder="Jelaskan cakupan materi bab, tata tertib pengerjaan, dan ketentuan kelulusan..."
+                  rows={2}
+                  className="glass-input w-full rounded-2xl p-3 text-xs"
+                />
+              </div>
+
+              {/* 3 Columns Settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-600 dark:text-[#ebd09e]">
+                    Durasi Pengerjaan (Menit)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="180"
+                    value={newQuizDuration}
+                    onChange={(e) => setNewQuizDuration(Number(e.target.value))}
+                    required
+                    className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-600 dark:text-[#ebd09e]">
+                    Passing Grade (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newQuizPassingScore}
+                    onChange={(e) => setNewQuizPassingScore(Number(e.target.value))}
+                    required
+                    className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-600 dark:text-[#ebd09e]">
+                    Bobot Penilaian (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={newQuizWeight}
+                    onChange={(e) => setNewQuizWeight(Number(e.target.value))}
+                    required
+                    className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic Question Builder */}
+            <div className="space-y-4 pt-3 border-t border-black/10 dark:border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-[#0A3266] dark:text-[#ebd09e]">
+                  Daftar Butir Soal ({newQuizQuestions.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNewQuizQuestions([
+                      ...newQuizQuestions,
+                      {
+                        questionText: "",
+                        questionType: "MULTIPLE_CHOICE",
+                        options: ["", "", "", ""],
+                        correctOptionIndex: 0,
+                        points: 10,
+                      },
+                    ])
+                  }
+                  className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#C9A05C]/20 hover:text-[#C9A05C] px-3 py-1.5 text-xs font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Soal</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {newQuizQuestions.map((q, qIdx) => (
+                  <div
+                    key={qIdx}
+                    className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 space-y-3 relative"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-[#0A3266] text-white px-2 py-0.5 text-[10px] font-bold">
+                          Soal #{qIdx + 1}
+                        </span>
+                        <select
+                          value={q.questionType}
+                          onChange={(e) => {
+                            const updated = [...newQuizQuestions];
+                            updated[qIdx].questionType = e.target.value;
+                            setNewQuizQuestions(updated);
+                          }}
+                          className="glass-input rounded-lg px-2 py-1 text-[11px] font-semibold"
+                        >
+                          <option value="MULTIPLE_CHOICE">Pilihan Ganda</option>
+                          <option value="ESSAY">Esai / Jawaban Terbuka</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-[11px] font-semibold">
+                          <span>Poin:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={q.points}
+                            onChange={(e) => {
+                              const updated = [...newQuizQuestions];
+                              updated[qIdx].points = Number(e.target.value);
+                              setNewQuizQuestions(updated);
+                            }}
+                            className="glass-input w-14 rounded-lg px-1.5 py-0.5 text-xs font-mono text-center"
+                          />
+                        </div>
+                        {newQuizQuestions.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewQuizQuestions(newQuizQuestions.filter((_, idx) => idx !== qIdx))
+                            }
+                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/15 transition-colors"
+                            title="Hapus Butir Soal"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={q.questionText}
+                        onChange={(e) => {
+                          const updated = [...newQuizQuestions];
+                          updated[qIdx].questionText = e.target.value;
+                          setNewQuizQuestions(updated);
+                        }}
+                        placeholder={`Tuliskan teks pertanyaan soal nomor ${qIdx + 1}...`}
+                        required
+                        className="glass-input w-full rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* Options if MULTIPLE_CHOICE */}
+                    {q.questionType === "MULTIPLE_CHOICE" && (
+                      <div className="space-y-2 pt-1">
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          Pilihan Jawaban (Pilih radio button di kiri untuk kunci jawaban benar):
+                        </span>
+                        {q.options.map((opt: string, optIdx: number) => (
+                          <div key={optIdx} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name={`correct_key_${qIdx}`}
+                              checked={q.correctOptionIndex === optIdx}
+                              onChange={() => {
+                                const updated = [...newQuizQuestions];
+                                updated[qIdx].correctOptionIndex = optIdx;
+                                setNewQuizQuestions(updated);
+                              }}
+                              className="accent-[#C9A05C] h-4 w-4 shrink-0"
+                              title="Set sebagai kunci jawaban benar"
+                            />
+                            <span className="font-mono text-xs font-bold text-slate-400 w-4">
+                              {String.fromCharCode(65 + optIdx)}.
+                            </span>
+                            <input
+                              type="text"
+                              value={opt}
+                              onChange={(e) => {
+                                const updated = [...newQuizQuestions];
+                                updated[qIdx].options[optIdx] = e.target.value;
+                                setNewQuizQuestions(updated);
+                              }}
+                              placeholder={`Opsi ${String.fromCharCode(65 + optIdx)}`}
+                              required
+                              className="glass-input w-full rounded-lg px-2.5 py-1 text-xs"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-black/10 dark:border-[#C9A05C]/20">
+              <button
+                type="button"
+                onClick={() => setShowAddQuizModal(false)}
+                className="glass-button-secondary rounded-xl px-4 py-2 text-xs font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={creatingQuiz}
+                className="glass-button-primary rounded-xl px-6 py-2 text-xs font-bold shadow-lg"
+              >
+                {creatingQuiz ? "Menerbitkan Kuis..." : "💾 Terbitkan Paket Kuis"}
               </button>
             </div>
           </form>
