@@ -29,16 +29,10 @@ next-env.d.ts
 *.pem
 *.key
 
-# Database Seeds, Dumps, Backups & Exports (Crucial Security)
-*seed*
-!*seed.example.ts*
-!*seed*.example*
-prisma/seed.ts
-seed.ts
-seeds/
+# Database Dumps, Backups & Exports (Crucial Security)
 seed-data/
-*.seed
-*.seed.*
+**/seed.ts
+**/seed.js
 *.sql
 *.dump
 dumps/

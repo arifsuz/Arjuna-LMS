@@ -43,5 +43,5 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 4000
 
-# Start backend with auto migration on start
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main.js"]
+# Start backend with auto migration & admin seed on start
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node prisma/seed.js && node dist/main.js"]
