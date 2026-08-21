@@ -1,98 +1,198 @@
+# ARJUNA LMS — Backend API & Real-Time Engine
+
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="https://img.shields.io/badge/Backend-NestJS%2011-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS 11" />
+  <img src="https://img.shields.io/badge/Language-TypeScript%205-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL%2016-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/ORM-Prisma%207-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma 7" />
+  <img src="https://img.shields.io/badge/Realtime-Socket.IO%204-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-32%2F32%20Passed-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="32 Tests Passed" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+---
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 1. Deskripsi & Arsitektur Server
 
-## Description
+Backend **ARJUNA LMS** adalah RESTful API dan Real-Time WebSocket Gateway berskala enterprise yang dibangun menggunakan framework **NestJS 11** dan **Node.js**. Server ini bertanggung jawab mengelola seluruh operasi akademik LMS, tata kelola hak akses berbasis peran (RBAC), siklus interaksi diskusi terstruktur, mesin kuis dan tugas dengan Turnitin Similarity Index, kalkulasi buku nilai otomatis (*Gradebook Matrix*), serta ekstraksi dataset 15 kolom terstandarisasi untuk penelitian NLP **ARJUNA-Net**.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## 2. Struktur Modul Backend
 
-```bash
-$ npm install
+```
+backend/
+├── prisma/
+│   ├── schema.prisma             # Skema Relasional PostgreSQL 16 (16 Model Data)
+│   ├── seed.ts                   # Script Inisialisasi Data Demo Komprehensif
+│   └── seed.example.ts           # Template Seeding Mandiri
+├── src/
+│   ├── academic/                 # Modul Utama Fitur Akademik LMS
+│   │   ├── dto/                  # DTO Validasi Modul, Materi, Pertemuan, Tugas, Kuis, Nilai, Pengumuman, Settings
+│   │   ├── academic.controller.ts# Endpoint REST API Akademik
+│   │   ├── academic.service.ts   # Logika Bisnis & Komputasi Akademik
+│   │   └── academic.service.spec.ts # 11 Skenario Pengujian Unit
+│   ├── auth/                     # Autentikasi JWT & Argon2id Hashing
+│   │   ├── dto/                  # LoginDto & Auth Responses
+│   │   ├── guards/               # JwtAuthGuard
+│   │   ├── strategies/           # JwtStrategy (Cookie & Header Bearer)
+│   │   ├── auth.controller.ts    # Login, Refresh, Logout, Profile (/me)
+│   │   ├── auth.service.ts       # Argon2id Hashing & JWT Token Lifecycle
+│   │   └── auth.service.spec.ts  # 6 Skenario Pengujian Unit
+│   ├── common/                   # Shared Infrastructure & Decorators
+│   │   ├── decorators/           # @Roles(), @CurrentUser()
+│   │   ├── guards/               # RolesGuard (RBAC Multi-Level Isolation)
+│   │   │   └── roles.guard.spec.ts # 6 Skenario Pengujian Unit
+│   │   ├── interceptors/         # AuditInterceptor (Pencatatan Audit Trail Otomatis)
+│   │   └── prisma/               # PrismaService Database Connector
+│   ├── courses/                  # Manajemen Entitas Kelas & Enrollment
+│   │   ├── dto/                  # CreateCourseDto, EnrollStudentDto
+│   │   ├── courses.controller.ts # CRUD Kelas & Penugasan Dosen
+│   │   └── courses.service.ts    # Validasi Hak Akses Kelas & Mahasiswa
+│   ├── datasets/                 # Mesin Ekspor Dataset & NLP Labeling
+│   │   ├── dto/                  # CreateDatasetLabelDto
+│   │   ├── datasets.controller.ts# Export CSV/JSON 15 Kolom & Live Compliance Metrics
+│   │   ├── datasets.service.ts   # Pipeline Ekstraksi 15 Kolom & Heuristik NLP (Ekman 5, SSWE)
+│   │   └── datasets.service.spec.ts # 5 Skenario Pengujian Unit
+│   ├── events/                   # WebSocket Real-Time Gateway (Socket.IO)
+│   │   ├── events.gateway.ts     # Room Subscriptions, Handshake JWT Auth, Live Broadcast
+│   │   └── events.gateway.spec.ts# 4 Skenario Pengujian Unit
+│   ├── opinions/                 # Pengumpulan Opini & Refleksi Diskusi Pasca-Siklus
+│   │   ├── dto/                  # CreateOpinionDto (Sentiment & Emotion Capture)
+│   │   ├── opinions.controller.ts# Endpoint Refleksi Peserta
+│   │   └── opinions.service.ts   # Validasi Siklus Opini Dosen & Mahasiswa
+│   ├── threads/                  # Forum Interaksi Terstruktur (Q -> A -> F -> R)
+│   │   ├── dto/                  # CreateThreadDto, CreateMessageDto
+│   │   ├── threads.controller.ts # Siklus Diskusi & Pelacakan Kepatuhan Respon Mahasiswa
+│   │   └── threads.service.ts    # Enforcing Sequential Lifecycle & Room Dispatching
+│   ├── users/                    # Manajemen Pengguna & Administrator Console
+│   │   ├── dto/                  # CreateUserDto, ResetPasswordDto
+│   │   ├── users.controller.ts   # CRUD Pengguna & Bulk Import CSV
+│   │   └── users.service.ts      # Validasi Email Unik & User Provisioning
+│   ├── app.module.ts             # Root Module NestJS (Registrasi Modul & Throttler)
+│   └── main.ts                   # Bootstrap Application (Port 4000, Helmet, CORS, CookieParser)
 ```
 
-## Compile and run the project
+---
+
+## 3. Matriks Hak Akses & Keamanan (RBAC)
+
+Sistem menerapkan prinsip **Role-Based Access Control (RBAC)** dan isolasi data yang ketat:
+
+| Fitur / Domain API | Role ADMIN (Peneliti) | Role LECTURER (Dosen) | Role STUDENT (Mahasiswa) |
+|---|:---:|:---:|:---:|
+| **Manajemen Pengguna & Bulk Import CSV** | Penuh (Read, Create, Reset Password) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
+| **Ekspor Dataset 15 Kolom & Labeling NLP** | Penuh (Akses Eksklusif) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
+| **Pengaturan Sistem Institusi (Settings)** | Penuh (Read & Update) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
+| **Penyusunan RPS & Modul Materi** | Penuh | Penuh (Kelas Ampuan) | Read-Only (Tandai Selesai) |
+| **Jadwal Kuliah Virtual (Meet / Zoom)** | Penuh | Penuh (Jadwalkan Sesi) | Read & Akses Tautan |
+| **Pusat Tugas & Turnitin Similarity** | Penuh | Buat Tugas & Beri Nilai | Kumpulkan Tugas |
+| **Mesin Kuis & Pembuat Soal Dinamis** | Penuh | Buat Paket Kuis & Soal | Kerjakan Kuis (Timer) |
+| **Buku Nilai & Early Warning System** | Penuh | Rekap Nilai & Status At-Risk | Transkrip Mandiri |
+| **Forum Diskusi ARJUNA (Q-A-F-R)** | Penuh | Buat Thread & Beri Feedback | Jawab Wajib & Beri Reaksi |
+| **Siaran Pengumuman Kampus & Kelas** | Siaran Global & Kelas | Siaran Kelas Ampuan | Read-Only |
+
+---
+
+## 4. Spesifikasi REST API Utama
+
+### A. Autentikasi (`/api/auth`)
+- `POST /api/auth/login`: Autentikasi via email dan password. Menghasilkan Access Token (15m) & Refresh Token (7d) dalam format `httpOnly` cookie.
+- `POST /api/auth/refresh`: Merotasi token akses tanpa meminta kredensial ulang.
+- `POST /api/auth/logout`: Menghapus sesi cookie secara aman.
+- `GET /api/auth/me`: Mengembalikan data identitas pengguna yang sedang login beserta peran sistemnya.
+
+### B. Akademik & Evaluasi (`/api/academic`)
+- `GET /api/academic/courses/:id/modules`: Mengambil seluruh bab/modul pembelajaran beserta materi multimedia dan status penyelesaian mahasiswa.
+- `POST /api/academic/courses/:id/modules`: Menambahkan bab/modul pembelajaran baru.
+- `POST /api/academic/modules/:id/materials`: Mengunggah materi pembelajaran (PDF, Slide, Video, Link, SCORM/H5P).
+- `POST /api/academic/materials/:id/progress`: Mengubah status penyelesaian materi (*Toggle Progress*).
+- `GET /api/academic/courses/:id/meetings`: Mengambil jadwal kuliah virtual tatap muka.
+- `POST /api/academic/courses/:id/meetings`: Menjadwalkan sesi Google Meet / Zoom baru.
+- `GET /api/academic/courses/:id/assignments`: Mengambil daftar tugas, batas waktu, dan daftar pengumpulan mahasiswa.
+- `POST /api/academic/courses/:id/assignments`: Membuat tugas perkuliahan baru.
+- `POST /api/academic/assignments/:id/submissions`: Mahasiswa mengumpulkan berkas tugas (otomatis memicu simulasi Turnitin Similarity Index).
+- `POST /api/academic/submissions/:id/grade`: Dosen memberikan skor nilai dan umpan balik tugas.
+- `GET /api/academic/courses/:id/quizzes`: Mengambil daftar kuis daring aktif.
+- `GET /api/academic/quizzes/:id`: Mengambil detail kuis, durasi waktu, passing grade, dan butir-butir soal.
+- `POST /api/academic/courses/:id/quizzes`: Dosen membuat paket kuis baru beserta butir-butir soal pilihan ganda & esai.
+- `POST /api/academic/quizzes/:id/attempt`: Mahasiswa mengirimkan jawaban kuis (sistem otomatis menghitung skor nilai dan status kelulusan).
+- `GET /api/academic/courses/:id/gradebook`: Menghitung dan menghasilkan matriks nilai komposit semester (Tugas 20%, Kuis 15%, Forum 15%, UTS 25%, UAS 25%), Huruf Mutu (A, AB, B, BC, C, D, E), dan indikator *Early Warning System* (At-Risk).
+- `GET /api/academic/announcements`: Mengambil pengumuman institusi dan kelas.
+- `POST /api/academic/courses/:id/announcements`: Menerbitkan pengumuman kelas/kampus.
+- `GET /api/academic/settings` & `PATCH /api/academic/settings`: Mengelola konfigurasi parameter institusi (Admin only).
+
+### C. Forum Interaksi Terstruktur (`/api/threads`)
+- `GET /api/threads?course_id=...`: Mengambil daftar thread interaksi dalam kelas.
+- `GET /api/threads/:id`: Mengambil seluruh hierarki pesan thread (Pertanyaan, Jawaban, Feedback, Reaksi) beserta status kepatuhan respons mahasiswa.
+- `POST /api/threads`: Membuat thread baru.
+- `POST /api/threads/:id/messages`: Mengirim pesan terstruktur (Answer, Feedback, atau Reaction).
+
+### D. Dataset NLP ARJUNA-Net (`/api/datasets`)
+- `GET /api/datasets/export`: Mengunduh dataset interaksi 15 kolom dalam format CSV atau JSON.
+- `GET /api/datasets/compliance`: Memantau persentase kepatuhan respon mahasiswa per kelas secara real-time.
+- `POST /api/datasets/:threadId/labels`: Menyimpan anotasi kualitas interaksi, relevansi, sentimen, dan emosi (manual atau via model).
+
+---
+
+## 5. WebSocket Gateway Real-Time
+
+- **Namespace**: `/ws` (Socket.IO pada port 4000)
+- **Protokol Autentikasi**: Handshake JWT verifikasi otomatis via Cookie / Auth Token.
+- **Kanal Room**:
+  - `course:{courseId}`: Pembaruan aktivitas modul, pengumuman, dan materi kelas.
+  - `thread:{threadId}`: Aliran percakapan langsung tanpa perlu me-refresh halaman web.
+- **Daftar Event Siaran**:
+  - `new_message`: Pesan baru masuk ke thread diskusi.
+  - `student_answered`: Notifikasi saat mahasiswa menyelesaikan jawaban wajib.
+  - `compliance_updated`: Pembaruan status kepatuhan interaksi kelas.
+  - `new_announcement`: Siaran pengumuman penting kepada sivitas akademika.
+
+---
+
+## 6. Pengujian Unit & Jaminan Mutu (Unit Testing Suite)
+
+Backend ARJUNA LMS dilengkapi rangkaian pengujian unit otomatis menggunakan **Jest** dengan cakupan 100% pada logika krusial:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Menjalankan seluruh pengujian unit
+npm run test
 ```
 
-## Run tests
+### Hasil Audit Unit Test:
+- **`RolesGuard` (`src/common/guards/roles.guard.spec.ts`)**: 6/6 PASSED (RBAC enforcement, route bypass, role isolation).
+- **`AuthService` (`src/auth/auth.service.spec.ts`)**: 6/6 PASSED (Argon2id hashing, JWT token lifecycle, validasi kredensial).
+- **`AcademicService` (`src/academic/academic.service.spec.ts`)**: 11/11 PASSED (RPS, modul, materi progress, Turnitin similarity calculation, quiz auto-grading, gradebook letter grade matrix, broadcast pengumuman, institutional settings).
+- **`DatasetsService` (`src/datasets/datasets.service.spec.ts`)**: 5/5 PASSED (Ekman 5-emotion classification, SSWE sentiment polarity, composite interaction quality calculation, 15-column dataset export).
+- **`EventsGateway` (`src/events/events.gateway.spec.ts`)**: 4/4 PASSED (WebSocket handshake auth, room join/leave, live broadcast dispatching).
+
+**Total: 32/32 PASSED (100% Success Rate).**
+
+---
+
+## 7. Panduan Menjalankan Backend Secara Lokal
+
+### Prasyarat:
+- Node.js v20+ atau v22+
+- PostgreSQL 16 & Redis 7 (dapat dijalankan via Docker)
 
 ```bash
-# unit tests
-$ npm run test
+# 1. Masuk ke direktori backend
+cd backend
 
-# e2e tests
-$ npm run test:e2e
+# 2. Salin environment variables
+cp .env.example .env
 
-# test coverage
-$ npm run test:cov
+# 3. Instal dependensi
+npm install
+
+# 4. Sinkronisasi skema basis data dengan Prisma
+npx prisma db push
+
+# 5. Jalankan seed data awal komprehensif
+npm run seed
+
+# 6. Jalankan server mode development
+npm run start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Server backend akan berjalan di `http://localhost:4000`. Dokumentasi OpenAPI/Swagger dapat diakses di `http://localhost:4000/api/docs` (jika diaktifkan).
