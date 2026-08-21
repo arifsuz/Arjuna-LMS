@@ -14,6 +14,7 @@ import {
   User,
   BookOpen,
   ArrowLeft,
+  ArrowRight,
   Loader2,
   Sliders,
   Filter,
@@ -111,8 +112,8 @@ export default function CampusAnnouncementsPage() {
             className="glass-input rounded-xl px-3 py-1.5 text-xs font-semibold cursor-pointer"
           >
             <option value="ALL">Semua Pengumuman</option>
-            <option value="PINNED">📌 Disematkan (Pinned)</option>
-            <option value="URGENT">🚨 Penting (Urgent)</option>
+            <option value="PINNED">Disematkan (Pinned)</option>
+            <option value="URGENT">Penting (Urgent)</option>
           </select>
         </div>
       </div>
@@ -213,9 +214,10 @@ export default function CampusAnnouncementsPage() {
                   {a.courseId && (
                     <Link
                       href={`/dashboard/courses/${a.courseId}?tab=announcements`}
-                      className="font-bold text-[#C9A05C] hover:underline"
+                      className="inline-flex items-center gap-1 font-bold text-[#C9A05C] hover:underline"
                     >
-                      Buka Ruang Kelas →
+                      <span>Buka Ruang Kelas</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   )}
                 </div>

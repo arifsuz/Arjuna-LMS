@@ -48,6 +48,8 @@ import {
   Sliders,
   CheckSquare,
   Send,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -421,11 +423,17 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/5 dark:border-white/5 text-[11px] font-semibold">
                 <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300">
-                  <span>Positif 👍</span>
+                  <span className="flex items-center gap-1.5">
+                    <ThumbsUp className="h-3 w-3" />
+                    <span>Positif</span>
+                  </span>
                   <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Positif || 8}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-rose-500/10 p-2 text-rose-700 dark:text-rose-300">
-                  <span>Negatif 👎</span>
+                  <span className="flex items-center gap-1.5">
+                    <ThumbsDown className="h-3 w-3" />
+                    <span>Negatif</span>
+                  </span>
                   <span className="font-bold font-mono">{datasetStats?.sentimentCounts?.Negatif || 2}</span>
                 </div>
               </div>

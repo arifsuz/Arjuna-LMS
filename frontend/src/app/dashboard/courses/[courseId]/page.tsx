@@ -2571,7 +2571,7 @@ function CourseDetailContent() {
                 disabled={creatingQuiz}
                 className="glass-button-primary rounded-xl px-6 py-2 text-xs font-bold shadow-lg"
               >
-                {creatingQuiz ? "Menerbitkan Kuis..." : "💾 Terbitkan Paket Kuis"}
+                {creatingQuiz ? "Menerbitkan Kuis..." : "Terbitkan Paket Kuis"}
               </button>
             </div>
           </form>

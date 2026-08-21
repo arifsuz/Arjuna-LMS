@@ -19,6 +19,10 @@ import {
   GraduationCap,
   MessageCircle,
   Smile,
+  Flame,
+  AlertCircle,
+  Frown,
+  Meh,
   Shield,
 } from "lucide-react";
 
@@ -50,11 +54,11 @@ const MESSAGE_TYPE_CONFIG: Record<
 
 const EMOTIONS_CONFIG: Record<
   string,
-  { label: string; emoji: string; desc: string; color: string; border: string; bg: string }
+  { label: string; icon: any; desc: string; color: string; border: string; bg: string }
 > = {
   Happiness: {
     label: "Happiness",
-    emoji: "😊",
+    icon: Smile,
     desc: "Senang / Puas",
     color: "text-emerald-600 dark:text-emerald-400",
     border: "border-emerald-500/40",
@@ -62,7 +66,7 @@ const EMOTIONS_CONFIG: Record<
   },
   Anger: {
     label: "Anger",
-    emoji: "😠",
+    icon: Flame,
     desc: "Kecewa / Kesal",
     color: "text-rose-600 dark:text-rose-400",
     border: "border-rose-500/40",
@@ -70,7 +74,7 @@ const EMOTIONS_CONFIG: Record<
   },
   Fear: {
     label: "Fear",
-    emoji: "😨",
+    icon: AlertCircle,
     desc: "Cemas / Ragu",
     color: "text-amber-600 dark:text-amber-400",
     border: "border-amber-500/40",
@@ -78,7 +82,7 @@ const EMOTIONS_CONFIG: Record<
   },
   Disgust: {
     label: "Disgust",
-    emoji: "🤢",
+    icon: Frown,
     desc: "Muak / Menolak",
     color: "text-purple-600 dark:text-purple-400",
     border: "border-purple-500/40",
@@ -86,7 +90,7 @@ const EMOTIONS_CONFIG: Record<
   },
   Sadness: {
     label: "Sadness",
-    emoji: "😢",
+    icon: Meh,
     desc: "Sedih / Sulit",
     color: "text-blue-600 dark:text-blue-400",
     border: "border-blue-500/40",
@@ -561,7 +565,7 @@ export default function ThreadDetailPage() {
                           : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
                       }`}
                     >
-                      <span className="text-lg">{config.emoji}</span>
+                      <config.icon className="h-4 w-4 shrink-0" />
                       <div>
                         <div className="leading-tight">{config.label}</div>
                         <div className="text-[10px] font-normal opacity-80">{config.desc}</div>
@@ -669,11 +673,11 @@ export default function ThreadDetailPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {op.emotion && (
+                        {op.emotion && emoConfig?.icon && (
                           <span
                             className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold border ${emoConfig.bg} ${emoConfig.color} ${emoConfig.border}`}
                           >
-                            <span>{emoConfig.emoji}</span>
+                            <emoConfig.icon className="h-3 w-3" />
                             <span>{op.emotion}</span>
                           </span>
                         )}
@@ -686,7 +690,11 @@ export default function ThreadDetailPage() {
                                 : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
                             }`}
                           >
-                            <span>{op.sentiment === "Positif" ? "👍" : "👎"}</span>
+                            {op.sentiment === "Positif" ? (
+                              <ThumbsUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                              <ThumbsDown className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                            )}
                             <span>{op.sentiment}</span>
                           </span>
                         )}

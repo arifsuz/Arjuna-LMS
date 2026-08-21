@@ -11,7 +11,7 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Seeding database with initial sample data...');
+  console.log('[Seed] Seeding database with initial sample data...');
 
   // Create Super Admin
   const adminPassword = await argon2.hash('admin123', {
@@ -31,7 +31,7 @@ async function main() {
       role: Role.ADMIN,
     },
   });
-  console.log(`✅ Admin created: ${admin.email}`);
+  console.log(`[Seed] Admin created: ${admin.email}`);
 
   // Create sample lecturer
   const lecturerPassword = await argon2.hash('dosen123', {
@@ -52,7 +52,7 @@ async function main() {
       createdByAdmin: admin.id,
     },
   });
-  console.log(`✅ Lecturer created: ${lecturer.email}`);
+  console.log(`[Seed] Lecturer created: ${lecturer.email}`);
 
   // Create sample students
   const studentPassword = await argon2.hash('mahasiswa123', {
@@ -76,7 +76,7 @@ async function main() {
       },
     });
     students.push(student);
-    console.log(`✅ Student created: ${student.email}`);
+    console.log(`[Seed] Student created: ${student.email}`);
   }
 
   // Create sample course
@@ -90,7 +90,7 @@ async function main() {
       term: '2026/2027-Ganjil',
     },
   });
-  console.log(`✅ Course created: ${course.code} - ${course.name}`);
+  console.log(`[Seed] Course created: ${course.code} - ${course.name}`);
 
   // Enroll students
   for (const student of students) {
@@ -108,14 +108,14 @@ async function main() {
       },
     });
   }
-  console.log(`✅ 4 students enrolled into ${course.code}`);
+  console.log(`[Seed] 4 students enrolled into ${course.code}`);
 
-  console.log('\n🎉 Seed finished successfully!');
+  console.log('\n[Seed] Finished successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed error:', e);
+    console.error('[Seed Error]:', e);
     process.exit(1);
   })
   .finally(async () => {

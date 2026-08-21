@@ -17,15 +17,15 @@ export function getSocket(): Socket {
     });
 
     socket.on("connect", () => {
-      console.log("🔌 Connected to ARJUNA LMS WebSocket Gateway:", socket?.id);
+      console.log("[WebSocket] Connected to ARJUNA LMS Gateway:", socket?.id);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("🔌 Disconnected from WebSocket:", reason);
+      console.log("[WebSocket] Disconnected:", reason);
     });
 
     socket.on("connect_error", (error) => {
-      console.warn("🔌 WebSocket connection error:", error.message);
+      console.warn("[WebSocket] Connection error:", error.message);
     });
   }
 

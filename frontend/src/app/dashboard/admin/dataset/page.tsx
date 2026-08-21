@@ -1401,8 +1401,8 @@ export default function AdminDatasetPage() {
                     }
                     className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
                   >
-                    <option value="Positif">👍 Positif (Mendukung / Positif)</option>
-                    <option value="Negatif">👎 Negatif (Kritik / Kendala)</option>
+                    <option value="Positif">Positif (Mendukung / Positif)</option>
+                    <option value="Negatif">Negatif (Kritik / Kendala)</option>
                   </select>
                   <p className="text-[10px] text-slate-400">Polaritas sentimen biner mahasiswa (SSWE + CNN)</p>
                 </div>
@@ -1419,11 +1419,11 @@ export default function AdminDatasetPage() {
                     }
                     className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
                   >
-                    <option value="Happiness">😊 Happiness (Kebahagiaan / Kepuasan)</option>
-                    <option value="Anger">😠 Anger (Kemarahan / Frustrasi)</option>
-                    <option value="Fear">😨 Fear (Kekhawatiran / Kecemasan)</option>
-                    <option value="Disgust">🤢 Disgust (Ketidaksukaan / Muak)</option>
-                    <option value="Sadness">😢 Sadness (Kesedihan / Kekecewaan)</option>
+                    <option value="Happiness">Happiness (Kebahagiaan / Kepuasan)</option>
+                    <option value="Anger">Anger (Kemarahan / Frustrasi)</option>
+                    <option value="Fear">Fear (Kekhawatiran / Kecemasan)</option>
+                    <option value="Disgust">Disgust (Ketidaksukaan / Muak)</option>
+                    <option value="Sadness">Sadness (Kesedihan / Kekecewaan)</option>
                   </select>
                   <p className="text-[10px] text-slate-400">Keadaan emosi dominan mahasiswa (EWE + CNN)</p>
                 </div>
@@ -1440,11 +1440,11 @@ export default function AdminDatasetPage() {
                     }
                     className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
                   >
-                    <option value="Happiness">😊 Happiness (Apresiasi / Positif)</option>
-                    <option value="Anger">😠 Anger (Koreksi Tegas / Peringatan)</option>
-                    <option value="Fear">😨 Fear (Peringatan Risiko / Kehati-hatian)</option>
-                    <option value="Disgust">🤢 Disgust (Ketidaksesuaian Total)</option>
-                    <option value="Sadness">😢 Sadness (Kekecewaan / Perlu Perbaikan)</option>
+                    <option value="Happiness">Happiness (Apresiasi / Positif)</option>
+                    <option value="Anger">Anger (Koreksi Tegas / Peringatan)</option>
+                    <option value="Fear">Fear (Peringatan Risiko / Kehati-hatian)</option>
+                    <option value="Disgust">Disgust (Ketidaksesuaian Total)</option>
+                    <option value="Sadness">Sadness (Kekecewaan / Perlu Perbaikan)</option>
                   </select>
                   <p className="text-[10px] text-slate-400">Nada/emosi feedback dosen (EWE + CNN)</p>
                 </div>

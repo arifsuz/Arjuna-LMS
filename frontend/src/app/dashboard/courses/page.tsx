@@ -348,7 +348,7 @@ function CoursesPageContent() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        /* 🎴 GRID VIEW */
+        /* GRID VIEW */
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredCourses.map((course) => {
             const targetUrl =
@@ -494,7 +494,7 @@ function CoursesPageContent() {
           })}
         </div>
       ) : (
-        /* 📋 COMPACT LIST / TABLE VIEW */
+        /* COMPACT LIST / TABLE VIEW */
         <div className="glass-panel rounded-3xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
