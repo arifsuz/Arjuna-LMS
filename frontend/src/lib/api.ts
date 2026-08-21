@@ -176,13 +176,14 @@ export const threads = {
 // ─── Opinions ─────────────────────────────────────────────────────────
 
 export const opinions = {
-  create: (threadId: string, data: { opinionText: string }) =>
+  create: (
+    threadId: string,
+    data: { opinionText: string; sentiment?: string; emotion?: string }
+  ) =>
     request(`/threads/${threadId}/opinions`, { method: "POST", json: data }),
 
   list: (threadId: string) => request(`/threads/${threadId}/opinions`),
 };
-
-// ─── Datasets & Admin Monitoring ──────────────────────────────────────
 
 export const datasets = {
   getSummary: () => request("/admin/dataset/summary"),
@@ -201,13 +202,95 @@ export const datasets = {
     return `${API_BASE}/admin/dataset/export?${params.toString()}`;
   },
 
+  listThreads: (paramsObj?: {
+    courseId?: string;
+    labeledStatus?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (paramsObj?.courseId) params.append("courseId", paramsObj.courseId);
+    if (paramsObj?.labeledStatus && paramsObj.labeledStatus !== "ALL")
+      params.append("labeledStatus", paramsObj.labeledStatus);
+    if (paramsObj?.search) params.append("search", paramsObj.search);
+    if (paramsObj?.page) params.append("page", String(paramsObj.page));
+    if (paramsObj?.limit) params.append("limit", String(paramsObj.limit));
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
+    return request<{ data: any[]; meta: any }>(`/admin/dataset/threads${queryStr}`);
+  },
+
+  autoLabelAll: (courseId?: string) =>
+    request<{ success: boolean; totalProcessed: number; labeledCount: number }>(
+      "/admin/dataset/auto-label-all",
+      { method: "POST", json: { courseId: courseId || undefined } }
+    ),
+
   setLabels: (threadId: string, data: any) =>
     request(`/admin/dataset/${threadId}/labels`, {
       method: "POST",
       json: data,
     }),
 
+  deleteLabels: (threadId: string) =>
+    request(`/admin/dataset/${threadId}/labels`, {
+      method: "DELETE",
+    }),
+
   getLabels: (threadId: string) => request(`/admin/dataset/${threadId}/labels`),
+};
+
+// ─── Academic LMS Module ──────────────────────────────────────────────
+
+export const academic = {
+  getOverview: () => request("/academic/overview"),
+
+  updateSyllabus: (courseId: string, data: { description?: string; syllabus?: string }) =>
+    request(`/courses/${courseId}/syllabus`, { method: "PATCH", json: data }),
+
+  // Modules & Materials
+  getModules: (courseId: string) => request<{ modules: any[]; stats: any }>(`/courses/${courseId}/modules`),
+  createModule: (courseId: string, data: { title: string; description?: string; orderIndex?: number }) =>
+    request(`/courses/${courseId}/modules`, { method: "POST", json: data }),
+  createMaterial: (moduleId: string, data: any) =>
+    request(`/modules/${moduleId}/materials`, { method: "POST", json: data }),
+  toggleMaterialProgress: (materialId: string) =>
+    request<{ completed: boolean }>(`/materials/${materialId}/toggle-progress`, { method: "POST" }),
+
+  // Virtual Meetings
+  getMeetings: (courseId: string) => request<any[]>(`/courses/${courseId}/meetings`),
+  createMeeting: (courseId: string, data: any) =>
+    request(`/courses/${courseId}/meetings`, { method: "POST", json: data }),
+
+  // Announcements & Groups
+  getCourseAnnouncements: (courseId: string) => request<any[]>(`/courses/${courseId}/announcements`),
+  getGeneralAnnouncements: () => request<any[]>("/announcements"),
+  createAnnouncement: (courseId: string | undefined, data: any) =>
+    request(courseId ? `/courses/${courseId}/announcements` : "/courses/undefined/announcements", {
+      method: "POST",
+      json: data,
+    }),
+  getStudyGroups: (courseId: string) => request<any[]>(`/courses/${courseId}/groups`),
+
+  // Assignments
+  getAssignments: (courseId: string) => request<any[]>(`/courses/${courseId}/assignments`),
+  createAssignment: (courseId: string, data: any) =>
+    request(`/courses/${courseId}/assignments`, { method: "POST", json: data }),
+  submitAssignment: (assignmentId: string, data: { fileUrl?: string; submittedText?: string }) =>
+    request(`/assignments/${assignmentId}/submissions`, { method: "POST", json: data }),
+  gradeSubmission: (submissionId: string, data: { score: number; feedback?: string }) =>
+    request(`/submissions/${submissionId}/grade`, { method: "POST", json: data }),
+
+  // Quizzes
+  getQuizzes: (courseId: string) => request<any[]>(`/courses/${courseId}/quizzes`),
+  getQuizDetails: (quizId: string) => request<any>(`/quizzes/${quizId}`),
+  createQuiz: (courseId: string, data: any) =>
+    request(`/courses/${courseId}/quizzes`, { method: "POST", json: data }),
+  submitQuizAttempt: (quizId: string, data: { answers: any[] }) =>
+    request(`/quizzes/${quizId}/attempt`, { method: "POST", json: data }),
+
+  // Gradebook
+  getGradebook: (courseId: string) => request<any>(`/courses/${courseId}/gradebook`),
 };
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -224,6 +307,8 @@ export interface Course {
   id: string;
   code: string;
   name: string;
+  description?: string;
+  syllabus?: string;
   term: string;
   lecturer: { id: string; name: string; email: string };
   _count: { enrollments: number; threads: number };

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, LabelSource } from '@prisma/client';
 import { PrismaService } from '../common/prisma';
 import { EventsGateway } from '../events/events.gateway';
 import { CreateOpinionDto } from './dto';
@@ -65,6 +65,8 @@ export class OpinionsService {
         where: { id: existing.id },
         data: {
           opinionText: dto.opinionText,
+          sentiment: dto.sentiment || existing.sentiment,
+          emotion: dto.emotion || existing.emotion,
         },
         include: {
           author: {
@@ -79,6 +81,8 @@ export class OpinionsService {
           authorId: userId,
           authorRole: userRole,
           opinionText: dto.opinionText,
+          sentiment: dto.sentiment || null,
+          emotion: dto.emotion || null,
         },
         include: {
           author: {
@@ -86,6 +90,39 @@ export class OpinionsService {
           },
         },
       });
+    }
+
+    // Sync ground truth affective labels into dataset_labels
+    if (dto.sentiment || dto.emotion) {
+      const existingLabel = await this.prisma.datasetLabel.findFirst({
+        where: { threadId },
+        orderBy: { labeledAt: 'desc' },
+      });
+
+      const labelData: any = {};
+      if (userRole === Role.STUDENT) {
+        if (dto.sentiment) labelData.studentSentiment = dto.sentiment;
+        if (dto.emotion) labelData.studentEmotion = dto.emotion;
+      } else {
+        if (dto.sentiment) labelData.lecturerSentiment = dto.sentiment;
+        if (dto.emotion) labelData.lecturerEmotion = dto.emotion;
+      }
+
+      if (existingLabel) {
+        await this.prisma.datasetLabel.update({
+          where: { id: existingLabel.id },
+          data: labelData,
+        });
+      } else {
+        await this.prisma.datasetLabel.create({
+          data: {
+            threadId,
+            ...labelData,
+            source: LabelSource.MANUAL,
+            labeledAt: new Date(),
+          },
+        });
+      }
     }
 
     // Real-time broadcast

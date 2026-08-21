@@ -48,7 +48,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans transition-colors duration-300 selection:bg-[#C9A05C]/30 selection:text-[#C9A05C]">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col font-sans transition-colors duration-300 selection:bg-[#C9A05C]/30 selection:text-[#C9A05C]"
+      >
         <ThemeProvider>
           {/* Ambient Brand Glow Background Orbs (Navy & Warm Gold) */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">

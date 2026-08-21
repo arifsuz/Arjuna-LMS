@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -28,6 +29,31 @@ export class DatasetsController {
   @Get('summary')
   async getSummary() {
     return this.datasetsService.getSummary();
+  }
+
+  @Get('threads')
+  async getThreads(
+    @Query('courseId') courseId?: string,
+    @Query('labeledStatus') labeledStatus?: 'ALL' | 'MANUAL' | 'AUTO' | 'UNLABELED',
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.datasetsService.getThreadsWithLabels({
+      courseId,
+      labeledStatus,
+      search,
+      page,
+      limit,
+    });
+  }
+
+  @Post('auto-label-all')
+  async autoLabelAll(
+    @CurrentUser('id') adminId: string,
+    @Body('courseId') courseId?: string,
+  ) {
+    return this.datasetsService.autoLabelAllThreads(courseId, adminId);
   }
 
   @Get('export')
@@ -59,6 +85,11 @@ export class DatasetsController {
     @Body() dto: CreateDatasetLabelDto,
   ) {
     return this.datasetsService.setLabels(threadId, adminId, dto);
+  }
+
+  @Delete(':threadId/labels')
+  async deleteLabels(@Param('threadId') threadId: string) {
+    return this.datasetsService.deleteLabels(threadId);
   }
 
   @Get(':threadId/labels')

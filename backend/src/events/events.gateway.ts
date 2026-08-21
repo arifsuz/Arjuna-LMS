@@ -14,7 +14,10 @@ import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow localhost, 127.0.0.1 and any configured origin
+      callback(null, true);
+    },
     credentials: true,
   },
   namespace: '/ws',

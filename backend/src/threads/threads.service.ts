@@ -373,6 +373,11 @@ export class ThreadsService {
       );
     }
 
+    // Admin is permitted to participate in all roles for monitoring/testing
+    if (role === Role.ADMIN) {
+      return;
+    }
+
     // ANSWER:
     // - Student can answer lecturer's question
     // - Lecturer can answer student's question
@@ -395,12 +400,12 @@ export class ThreadsService {
       }
     }
 
-    // FEEDBACK: only lecturer
+    // FEEDBACK: only lecturer (admin already returned early)
     if (type === MessageType.FEEDBACK && role !== Role.LECTURER) {
       throw new BadRequestException('Hanya dosen yang bisa memberi feedback');
     }
 
-    // REACTION: only student
+    // REACTION: only student (admin already returned early)
     if (type === MessageType.REACTION && role !== Role.STUDENT) {
       throw new BadRequestException(
         'Hanya mahasiswa yang bisa memberi reaksi',

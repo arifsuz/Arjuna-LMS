@@ -19,36 +19,41 @@ import { RolesGuard } from '../common/guards';
 
 @Controller('admin/courses')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.ADMIN)
 export class AdminCoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Get()
+  @Roles(Role.ADMIN, Role.LECTURER)
   async findAll() {
     return this.coursesService.findAll();
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.LECTURER)
   async findById(@Param('id') id: string) {
     return this.coursesService.findById(id);
   }
 
   @Post()
+  @Roles(Role.ADMIN)
   async create(@Body() dto: CreateCourseDto) {
     return this.coursesService.create(dto);
   }
 
   @Put(':id')
+  @Roles(Role.ADMIN)
   async update(@Param('id') id: string, @Body() dto: UpdateCourseDto) {
     return this.coursesService.update(id, dto);
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   async delete(@Param('id') id: string) {
     return this.coursesService.delete(id);
   }
 
   @Post(':id/enroll')
+  @Roles(Role.ADMIN)
   async enrollStudents(
     @Param('id') courseId: string,
     @Body() dto: EnrollStudentsDto,
@@ -57,6 +62,7 @@ export class AdminCoursesController {
   }
 
   @Delete(':courseId/students/:studentId')
+  @Roles(Role.ADMIN)
   async unenrollStudent(
     @Param('courseId') courseId: string,
     @Param('studentId') studentId: string,

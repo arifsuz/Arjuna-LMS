@@ -15,8 +15,11 @@ import {
   Lock,
   Sparkles,
   ThumbsUp,
+  ThumbsDown,
   GraduationCap,
   MessageCircle,
+  Smile,
+  Shield,
 } from "lucide-react";
 
 const MESSAGE_TYPE_CONFIG: Record<
@@ -34,7 +37,7 @@ const MESSAGE_TYPE_CONFIG: Record<
     borderClass: "border-l-4 border-l-[#C9A05C]",
   },
   FEEDBACK: {
-    label: "Umpan Balik Dosen",
+    label: "Umpan Balik Dosen / Admin",
     badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
     borderClass: "border-l-4 border-l-amber-500",
   },
@@ -42,6 +45,52 @@ const MESSAGE_TYPE_CONFIG: Record<
     label: "Tanggapan Mahasiswa",
     badgeClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
     borderClass: "border-l-4 border-l-emerald-500",
+  },
+};
+
+const EMOTIONS_CONFIG: Record<
+  string,
+  { label: string; emoji: string; desc: string; color: string; border: string; bg: string }
+> = {
+  Happiness: {
+    label: "Happiness",
+    emoji: "😊",
+    desc: "Senang / Puas",
+    color: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-500/40",
+    bg: "bg-emerald-500/15",
+  },
+  Anger: {
+    label: "Anger",
+    emoji: "😠",
+    desc: "Kecewa / Kesal",
+    color: "text-rose-600 dark:text-rose-400",
+    border: "border-rose-500/40",
+    bg: "bg-rose-500/15",
+  },
+  Fear: {
+    label: "Fear",
+    emoji: "😨",
+    desc: "Cemas / Ragu",
+    color: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/40",
+    bg: "bg-amber-500/15",
+  },
+  Disgust: {
+    label: "Disgust",
+    emoji: "🤢",
+    desc: "Muak / Menolak",
+    color: "text-purple-600 dark:text-purple-400",
+    border: "border-purple-500/40",
+    bg: "bg-purple-500/15",
+  },
+  Sadness: {
+    label: "Sadness",
+    emoji: "😢",
+    desc: "Sedih / Sulit",
+    color: "text-blue-600 dark:text-blue-400",
+    border: "border-blue-500/40",
+    bg: "bg-blue-500/15",
   },
 };
 
@@ -58,8 +107,10 @@ export default function ThreadDetailPage() {
   const [sending, setSending] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
 
-  // Post-interaction reflection state
+  // Post-interaction reflection state (ARJUNA-Net Opinion Pipeline)
   const [opinionText, setOpinionText] = useState("");
+  const [selectedEmotion, setSelectedEmotion] = useState<string>("Happiness");
+  const [selectedSentiment, setSelectedSentiment] = useState<string>("Positif");
   const [submittingOpinion, setSubmittingOpinion] = useState(false);
   const [opinionSaved, setOpinionSaved] = useState(false);
 
@@ -79,6 +130,8 @@ export default function ThreadDetailPage() {
           setReplyType(
             data.initiatorRole === "STUDENT" ? "ANSWER" : "FEEDBACK"
           );
+        } else if (user.role === "ADMIN") {
+          setReplyType("FEEDBACK");
         }
 
         const myOpinion = data.opinions?.find(
@@ -86,6 +139,8 @@ export default function ThreadDetailPage() {
         );
         if (myOpinion) {
           setOpinionText(myOpinion.opinionText);
+          if (myOpinion.emotion) setSelectedEmotion(myOpinion.emotion);
+          if (myOpinion.sentiment) setSelectedSentiment(myOpinion.sentiment);
           setOpinionSaved(true);
         }
       }
@@ -180,21 +235,16 @@ export default function ThreadDetailPage() {
     }
   };
 
-  const handleCloseThread = async () => {
-    try {
-      await threadsApi.close(threadId);
-      await loadThread();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleSubmitOpinion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!opinionText.trim()) return;
     setSubmittingOpinion(true);
     try {
-      await opinionsApi.create(threadId, { opinionText });
+      await opinionsApi.create(threadId, {
+        opinionText,
+        sentiment: selectedSentiment,
+        emotion: selectedEmotion,
+      });
       setOpinionSaved(true);
       await loadThread();
     } catch (err: any) {
@@ -204,149 +254,152 @@ export default function ThreadDetailPage() {
     }
   };
 
+  const handleCloseThread = async () => {
+    if (!confirm("Apakah Anda yakin ingin menutup thread diskusi ini?")) return;
+    try {
+      await threadsApi.close(threadId);
+      loadThread();
+    } catch (err: any) {
+      alert(err.message || "Gagal menutup thread");
+    }
+  };
+
   if (loading) {
     return (
-      <div className="glass-card-static flex flex-col items-center justify-center py-24 rounded-3xl gap-3">
+      <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#C9A05C]" />
-        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Memuat percakapan diskusi...</span>
       </div>
     );
   }
 
-  if (!thread || !user) return null;
+  if (!thread) {
+    return (
+      <div className="glass-panel text-center rounded-3xl py-12">
+        <p className="text-slate-500">Thread tidak ditemukan.</p>
+        <Link
+          href={`/dashboard/courses/${courseId}`}
+          className="glass-button-gold mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Kembali ke Kelas</span>
+        </Link>
+      </div>
+    );
+  }
 
-  const isLecturer = user.role === "LECTURER" || user.role === "ADMIN";
+  const isLecturer = user?.role === "LECTURER";
+  const isAdmin = user?.role === "ADMIN";
   const isClosed = thread.status === "CLOSED";
 
   return (
-    <div className="space-y-6">
-      {/* Back button */}
-      <div>
-        <Link
-          href={`/dashboard/courses/${courseId}`}
-          className="glass-button-secondary inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold backdrop-blur-md transition-all"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Kembali ke Forum Kelas</span>
-        </Link>
-      </div>
-
-      {/* Thread Header Banner */}
-      <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8">
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span
-                className={`inline-flex items-center rounded-xl px-3 py-0.5 text-xs font-bold border ${
-                  thread.initiatorRole === "LECTURER"
-                    ? "bg-[#C9A05C]/15 text-[#8c6828] dark:text-[#dbb779] border-[#C9A05C]/40"
-                    : "bg-[#0A3266]/15 text-[#0A3266] dark:text-[#8bb8f0] border-[#0A3266]/40"
-                }`}
-              >
-                {thread.initiatorRole === "LECTURER" ? "Pertanyaan Dosen" : "Pertanyaan Mahasiswa"}
-              </span>
-
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 text-xs font-semibold ${
-                  isClosed
-                    ? "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700"
-                    : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                }`}
-              >
-                {isClosed ? (
-                  <Lock className="h-3.5 w-3.5" />
-                ) : (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                )}
-                <span>{isClosed ? "Diskusi Selesai" : "Diskusi Terbuka"}</span>
-              </span>
-
-              {realtimeConnected && (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Sinkronisasi Langsung</span>
+    <div className="space-y-6 pb-12">
+      {/* Header Bar */}
+      <div className="glass-panel relative overflow-hidden rounded-3xl p-6 shadow-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/dashboard/courses/${courseId}`}
+              className="glass-button-secondary flex h-10 w-10 items-center justify-center rounded-xl"
+            >
+              <ArrowLeft className="h-4 w-4 text-[#C9A05C]" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-[#8c6828] dark:text-[#C9A05C]">
+                  {thread.course.code}
                 </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A3266] dark:text-white">
-              {thread.title}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
-              <span>Mata Kuliah:</span>
-              <span className="text-[#0A3266] dark:text-white font-bold">{thread.course?.name}</span>
-              <span>•</span>
-              <span>Inisiator:</span>
-              <span className="text-[#8c6828] dark:text-[#C9A05C] font-semibold">{thread.initiator?.name}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {thread.course.name}
+                </span>
+              </div>
+              <h1 className="text-xl font-black text-[#0A3266] dark:text-white">
+                {thread.title}
+              </h1>
             </div>
           </div>
 
-          {isLecturer && !isClosed && (
-            <button
-              onClick={handleCloseThread}
-              className="glass-button-secondary rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300"
-            >
-              Tutup Forum Diskusi
-            </button>
-          )}
-        </div>
-
-        {/* Student Compliance Tracker */}
-        {thread.compliance && isLecturer && (
-          <div className="mt-6 rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-5 backdrop-blur-md">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#0A3266] dark:text-slate-200">
-                <GraduationCap className="h-4 w-4 text-[#C9A05C]" />
-                <span>
-                  Partisipasi Jawaban Mahasiswa: {thread.compliance.answered} dari {thread.compliance.total} Mahasiswa
-                </span>
-              </div>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {thread.compliance.pending === 0
-                  ? "Semua mahasiswa telah berpartisipasi"
-                  : `${thread.compliance.pending} mahasiswa belum menjawab`}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  realtimeConnected
+                    ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                    : "bg-amber-500"
+                }`}
+              />
+              <span className="text-[11px] font-medium text-slate-400">
+                {realtimeConnected ? "Live Real-Time" : "Menghubungkan..."}
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {thread.compliance.students?.map((s: any) => (
-                <span
-                  key={s.id}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border ${
-                    s.hasAnswered
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-semibold"
-                      : "bg-black/5 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 border-black/10 dark:border-white/[0.06]"
-                  }`}
-                >
-                  {s.hasAnswered ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  ) : (
-                    <UserIcon className="h-3.5 w-3.5 opacity-50" />
-                  )}
-                  <span>{s.name}</span>
-                </span>
-              ))}
+            {isClosed ? (
+              <span className="inline-flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-500">
+                <Lock className="h-3.5 w-3.5" />
+                <span>Diskusi Ditutup</span>
+              </span>
+            ) : (isLecturer || isAdmin) ? (
+              <button
+                onClick={handleCloseThread}
+                className="glass-button-secondary rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300"
+              >
+                Tutup Diskusi
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Compliance Meter (For Lecturer / Admin) */}
+        {thread.compliance && (
+          <div className="mt-6 rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-4 backdrop-blur-md">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <div className="flex items-center gap-2 text-[#0A3266] dark:text-white">
+                <GraduationCap className="h-4 w-4 text-[#C9A05C]" />
+                <span>Kepatuhan Menjawab Mahasiswa</span>
+              </div>
+              <span className="text-[#8c6828] dark:text-[#C9A05C]">
+                {thread.compliance.answered} / {thread.compliance.total} Mahasiswa (
+                {Math.round(
+                  (thread.compliance.answered / (thread.compliance.total || 1)) *
+                    100
+                )}
+                %)
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#0A3266] to-[#C9A05C] transition-all duration-500"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (thread.compliance.answered /
+                        (thread.compliance.total || 1)) *
+                        100
+                    )
+                  )}%`,
+                }}
+              />
             </div>
           </div>
         )}
       </div>
 
-      {/* Discussion Timeline */}
+      {/* Messages Timeline */}
       <div className="space-y-4">
         {thread.messages?.map((msg: Message) => {
           const config =
             MESSAGE_TYPE_CONFIG[msg.type] || MESSAGE_TYPE_CONFIG.QUESTION;
-          const isOwnMessage = msg.author.id === user.id;
+          const isOwnMessage = msg.author.id === user?.id;
 
           return (
             <div
               key={msg.id}
-              className={`glass-card-static relative overflow-hidden rounded-3xl p-6 ${config.borderClass}`}
+              className={`glass-panel relative overflow-hidden rounded-3xl p-6 shadow-lg transition-all duration-300 ${config.borderClass}`}
             >
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#0A3266] to-[#C9A05C] text-xs font-bold text-white shadow-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#0A3266]/10 dark:bg-white/10 text-xs font-bold text-[#0A3266] dark:text-white">
                     {msg.author.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -395,23 +448,41 @@ export default function ThreadDetailPage() {
           onSubmit={handleSendReply}
           className="glass-panel relative overflow-hidden rounded-3xl p-6 shadow-2xl"
         >
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-[#0A3266] dark:text-white">
-            <MessageCircle className="h-4 w-4 text-[#C9A05C]" />
-            <span>
-              {replyType === "ANSWER"
-                ? "Tulis Jawaban Wajib Anda"
-                : replyType === "FEEDBACK"
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-[#0A3266] dark:text-white">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-[#C9A05C]" />
+              <span>
+                {replyType === "ANSWER"
+                  ? "Tulis Jawaban Wajib Anda"
+                  : replyType === "FEEDBACK"
                   ? "Beri Umpan Balik & Evaluasi Dosen"
                   : "Beri Tanggapan atas Diskusi"}
-            </span>
+              </span>
+            </div>
+
+            {/* If Admin: allow switching response type */}
+            {isAdmin && (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-400">Tipe Respon:</span>
+                <select
+                  value={replyType}
+                  onChange={(e) => setReplyType(e.target.value)}
+                  className="glass-input rounded-xl px-2.5 py-1 text-xs font-semibold"
+                >
+                  <option value="FEEDBACK">Feedback Dosen/Admin</option>
+                  <option value="ANSWER">Jawaban Kelas</option>
+                  <option value="REACTION">Reaksi Mahasiswa</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
             {replyType === "ANSWER"
               ? "Berikan jawaban lengkap dan terstruktur atas pertanyaan yang diajukan."
               : replyType === "FEEDBACK"
-                ? "Berikan penilaian konstruktif untuk memperdalam pemahaman mahasiswa."
-                : "Sampaikan pandangan atau pertanyaan lanjutan untuk memperkaya diskusi kelas."}
+              ? "Berikan penilaian konstruktif untuk memperdalam pemahaman mahasiswa."
+              : "Sampaikan pandangan atau pertanyaan lanjutan untuk memperkaya diskusi kelas."}
           </p>
 
           <textarea
@@ -436,7 +507,9 @@ export default function ThreadDetailPage() {
         </form>
       )}
 
-      {/* Refleksi Pembelajaran */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          REFLEKSI PEMBELAJARAN (OPINION, SENTIMENT & EMOTION PIPELINE)
+      ═══════════════════════════════════════════════════════════════════ */}
       <section aria-label="Refleksi Pembelajaran" className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8 border-[#C9A05C]/35">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -445,10 +518,10 @@ export default function ThreadDetailPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#0A3266] dark:text-white">
-                Refleksi Pembelajaran
+                Refleksi Pembelajaran & Anotasi Emosi (ARJUNA-Net)
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-300">
-                Bagikan refleksi pemahaman dan catatan belajar Anda setelah mengikuti diskusi ini.
+                Pilih emosi & polaritas sentimen serta tuliskan refleksi pemahaman Anda setelah mengikuti diskusi ini.
               </p>
             </div>
           </div>
@@ -456,13 +529,91 @@ export default function ThreadDetailPage() {
           {opinionSaved && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Refleksi Tersimpan</span>
+              <span>Refleksi & Emosi Tersimpan</span>
             </span>
           )}
         </div>
 
-        {/* Input Form for Current User */}
-        <form onSubmit={handleSubmitOpinion} className="space-y-3">
+        {/* Input Form for Current User (Student, Lecturer, or Admin) */}
+        <form onSubmit={handleSubmitOpinion} className="space-y-4">
+          {/* Emotion & Sentiment Selection Panel */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/[0.02] dark:bg-white/[0.03] p-4 rounded-2xl border border-black/10 dark:border-white/[0.08]">
+            {/* Emotion Selection (5 classes) */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] flex items-center gap-1.5">
+                <Smile className="h-4 w-4 text-[#C9A05C]" />
+                <span>Pilih Emosi Anda (EWE 5-Classes):</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Object.entries(EMOTIONS_CONFIG).map(([key, config]) => {
+                  const isSelected = selectedEmotion === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmotion(key);
+                        setOpinionSaved(false);
+                      }}
+                      className={`flex items-center gap-2 rounded-xl p-2.5 text-left text-xs font-bold transition-all border ${
+                        isSelected
+                          ? `${config.bg} ${config.color} ${config.border} ring-2 ring-[#C9A05C]/50 shadow-md`
+                          : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                      }`}
+                    >
+                      <span className="text-lg">{config.emoji}</span>
+                      <div>
+                        <div className="leading-tight">{config.label}</div>
+                        <div className="text-[10px] font-normal opacity-80">{config.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sentiment Selection (Positif / Negatif) */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] flex items-center gap-1.5">
+                <ThumbsUp className="h-4 w-4 text-[#C9A05C]" />
+                <span>Polaritas Sentimen (SSWE):</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSentiment("Positif");
+                    setOpinionSaved(false);
+                  }}
+                  className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                    selectedSentiment === "Positif"
+                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50 ring-2 ring-emerald-500/40 shadow-md"
+                      : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  <ThumbsUp className="h-4 w-4 text-emerald-500" />
+                  <span>Positif (Mendukung)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSentiment("Negatif");
+                    setOpinionSaved(false);
+                  }}
+                  className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                    selectedSentiment === "Negatif"
+                      ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 ring-2 ring-rose-500/40 shadow-md"
+                      : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  <ThumbsDown className="h-4 w-4 text-rose-500" />
+                  <span>Negatif (Kritik / Kendala)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <textarea
             value={opinionText}
             onChange={(e) => {
@@ -479,14 +630,14 @@ export default function ThreadDetailPage() {
             <button
               type="submit"
               disabled={submittingOpinion}
-              className="glass-button-gold flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50"
+              className="glass-button-gold flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50 shadow-lg"
             >
               {submittingOpinion ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <ThumbsUp className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5 text-[#0A3266]" />
               )}
-              <span>{opinionSaved ? "Perbarui Refleksi" : "Kirim Refleksi Pembelajaran"}</span>
+              <span>{opinionSaved ? "Perbarui Refleksi & Emosi" : "Kirim Refleksi Pembelajaran"}</span>
             </button>
           </div>
         </form>
@@ -495,36 +646,68 @@ export default function ThreadDetailPage() {
         {thread.opinions && thread.opinions.length > 0 && (
           <div className="mt-6 border-t border-black/10 dark:border-white/[0.08] pt-5">
             <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Catatan Refleksi Peserta ({thread.opinions.length})
+              Catatan Refleksi & Emosi Peserta ({thread.opinions.length})
             </h4>
             <div className="space-y-3">
-              {thread.opinions.map((op: any) => (
-                <div
-                  key={op.id}
-                  className="rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs text-slate-600 dark:text-slate-300 backdrop-blur-md"
-                >
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <span className="font-semibold text-[#0A3266] dark:text-white">
-                      {op.author?.name}
-                      <span className="ml-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                        ({op.authorRole === "LECTURER" ? "Dosen" : "Mahasiswa"})
-                      </span>
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(op.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+              {thread.opinions.map((op: any) => {
+                const emoConfig =
+                  EMOTIONS_CONFIG[op.emotion] || EMOTIONS_CONFIG.Happiness;
+
+                return (
+                  <div
+                    key={op.id}
+                    className="rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs text-slate-600 dark:text-slate-300 backdrop-blur-md"
+                  >
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#0A3266] dark:text-white">
+                          {op.author?.name}
+                          <span className="ml-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                            ({op.authorRole === "LECTURER" ? "Dosen" : op.authorRole === "ADMIN" ? "Admin" : "Mahasiswa"})
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {op.emotion && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold border ${emoConfig.bg} ${emoConfig.color} ${emoConfig.border}`}
+                          >
+                            <span>{emoConfig.emoji}</span>
+                            <span>{op.emotion}</span>
+                          </span>
+                        )}
+
+                        {op.sentiment && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold ${
+                              op.sentiment === "Positif"
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                                : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                            }`}
+                          >
+                            <span>{op.sentiment === "Positif" ? "👍" : "👎"}</span>
+                            <span>{op.sentiment}</span>
+                          </span>
+                        )}
+
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(op.createdAt).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="italic text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
+                      &ldquo;{op.opinionText}&rdquo;
+                    </p>
                   </div>
-                  <p className="italic text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
-                    &ldquo;{op.opinionText}&rdquo;
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

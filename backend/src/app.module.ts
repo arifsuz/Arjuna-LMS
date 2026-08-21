@@ -10,6 +10,7 @@ import { CoursesModule } from './courses/courses.module';
 import { ThreadsModule } from './threads/threads.module';
 import { OpinionsModule } from './opinions/opinions.module';
 import { DatasetsModule } from './datasets/datasets.module';
+import { AcademicModule } from './academic/academic.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -39,6 +40,7 @@ import { AppController } from './app.controller';
     ThreadsModule,
     OpinionsModule,
     DatasetsModule,
+    AcademicModule,
   ],
   controllers: [AppController],
   providers: [

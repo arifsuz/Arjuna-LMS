@@ -1,5 +1,5 @@
 // Prisma Schema for ARJUNA LMS
-// Sesuai PRD: User, Course, Enrollment, Thread, ThreadMessage, Opinion, DatasetLabel, AuditLog
+// Platform LMS Kampus Profesional & Engine Pengumpulan Dataset ARJUNA-Net
 
 generator client {
   provider = "prisma-client-js"
@@ -34,6 +34,22 @@ enum LabelSource {
   MODEL
 }
 
+enum MaterialType {
+  PDF
+  VIDEO
+  SLIDE
+  LINK
+  SCORM_H5P
+  DOCUMENT
+}
+
+enum MeetingPlatform {
+  ZOOM
+  GOOGLE_MEET
+  MS_TEAMS
+  JITSI
+}
+
 // ─── User ─────────────────────────────────────────────────────────────
 
 model User {
@@ -47,15 +63,20 @@ model User {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  createdBy       User?           @relation("UserCreatedBy", fields: [createdByAdmin], references: [id])
-  createdUsers    User[]          @relation("UserCreatedBy")
-  taughtCourses   Course[]        @relation("CourseLecturer")
-  enrollments     Enrollment[]
-  initiatedThreads Thread[]       @relation("ThreadInitiator")
-  messages        ThreadMessage[]
-  opinions        Opinion[]
-  datasetLabels   DatasetLabel[]  @relation("LabeledByUser")
-  auditLogs       AuditLog[]
+  createdBy             User?                  @relation("UserCreatedBy", fields: [createdByAdmin], references: [id])
+  createdUsers          User[]                 @relation("UserCreatedBy")
+  taughtCourses         Course[]               @relation("CourseLecturer")
+  enrollments           Enrollment[]
+  initiatedThreads      Thread[]               @relation("ThreadInitiator")
+  messages              ThreadMessage[]
+  opinions              Opinion[]
+  datasetLabels         DatasetLabel[]         @relation("LabeledByUser")
+  auditLogs             AuditLog[]
+  materialProgress      MaterialProgress[]
+  announcements         Announcement[]
+  groupMembers          GroupMember[]
+  assignmentSubmissions AssignmentSubmission[]
+  quizAttempts          QuizAttempt[]
 
   @@map("users")
 }
@@ -63,18 +84,26 @@ model User {
 // ─── Course ───────────────────────────────────────────────────────────
 
 model Course {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  lecturerId String   @map("lecturer_id")
-  term       String   // e.g., "2026/2027-Ganjil"
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  syllabus    String?  // Rich text RPS / Capaian Pembelajaran Lulusan (CPL)
+  lecturerId  String   @map("lecturer_id")
+  term        String   // e.g., "2026/2027-Ganjil"
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  lecturer    User         @relation("CourseLecturer", fields: [lecturerId], references: [id])
-  enrollments Enrollment[]
-  threads     Thread[]
+  lecturer        User             @relation("CourseLecturer", fields: [lecturerId], references: [id])
+  enrollments     Enrollment[]
+  threads         Thread[]
+  modules         CourseModule[]
+  virtualMeetings VirtualMeeting[]
+  announcements   Announcement[]
+  studyGroups     StudyGroup[]
+  assignments     Assignment[]
+  quizzes         Quiz[]
 
   @@map("courses")
 }
@@ -82,7 +111,7 @@ model Course {
 // ─── Enrollment ───────────────────────────────────────────────────────
 
 model Enrollment {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   courseId   String   @map("course_id")
   studentId  String   @map("student_id")
   enrolledAt DateTime @default(now()) @map("enrolled_at")
@@ -95,24 +124,221 @@ model Enrollment {
   @@map("enrollments")
 }
 
-// ─── Thread ───────────────────────────────────────────────────────────
+// ─── Core LMS: Modules & Learning Path ────────────────────────────────
+
+model CourseModule {
+  id          String           @id @default(cuid())
+  courseId    String           @map("course_id")
+  title       String
+  description String?
+  orderIndex  Int              @default(1) @map("order_index")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  materials   CourseMaterial[]
+  assignments Assignment[]
+  quizzes     Quiz[]
+
+  @@map("course_modules")
+}
+
+model CourseMaterial {
+  id              String             @id @default(cuid())
+  moduleId        String             @map("module_id")
+  title           String
+  type            MaterialType       @default(PDF)
+  contentUrl      String?            @map("content_url")
+  textContent     String?            @map("text_content")
+  durationMinutes Int?               @map("duration_minutes")
+  orderIndex      Int                @default(1) @map("order_index")
+  createdAt       DateTime           @default(now()) @map("created_at")
+
+  module          CourseModule       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress        MaterialProgress[]
+
+  @@map("course_materials")
+}
+
+model MaterialProgress {
+  id          String         @id @default(cuid())
+  materialId  String         @map("material_id")
+  studentId   String         @map("student_id")
+  completedAt DateTime       @default(now()) @map("completed_at")
+
+  material    CourseMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  student     User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, studentId])
+  @@map("material_progress")
+}
+
+// ─── Communication: Virtual Meeting & Announcements ───────────────────
+
+model VirtualMeeting {
+  id              String          @id @default(cuid())
+  courseId        String          @map("course_id")
+  title           String
+  platform        MeetingPlatform @default(GOOGLE_MEET)
+  meetingUrl      String          @map("meeting_url")
+  passcode        String?
+  scheduledAt     DateTime        @map("scheduled_at")
+  durationMinutes Int             @default(90) @map("duration_minutes")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("virtual_meetings")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  courseId  String?  @map("course_id")
+  authorId  String   @map("author_id")
+  title     String
+  content   String
+  isPinned  Boolean  @default(false) @map("is_pinned")
+  priority  String   @default("NORMAL") // "NORMAL" | "URGENT"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("announcements")
+}
+
+model StudyGroup {
+  id          String        @id @default(cuid())
+  courseId    String        @map("course_id")
+  name        String
+  description String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+
+  @@map("study_groups")
+}
+
+model GroupMember {
+  id        String     @id @default(cuid())
+  groupId   String     @map("group_id")
+  studentId String     @map("student_id")
+  joinedAt  DateTime   @default(now()) @map("joined_at")
+
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, studentId])
+  @@map("group_members")
+}
+
+// ─── Assessment: Assignments & Plagiarism ─────────────────────────────
+
+model Assignment {
+  id               String                 @id @default(cuid())
+  courseId         String                 @map("course_id")
+  moduleId         String?                @map("module_id")
+  title            String
+  description      String
+  dueDate          DateTime               @map("due_date")
+  maxScore         Float                  @default(100) @map("max_score")
+  weightPercentage Float                  @default(15) @map("weight_percentage")
+  createdAt        DateTime               @default(now()) @map("created_at")
+
+  course           Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module           CourseModule?          @relation(fields: [moduleId], references: [id])
+  submissions      AssignmentSubmission[]
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id                   String     @id @default(cuid())
+  assignmentId         String     @map("assignment_id")
+  studentId            String     @map("student_id")
+  fileUrl              String?    @map("file_url")
+  submittedText        String?    @map("submitted_text")
+  score                Float?
+  feedback             String?
+  plagiarismSimilarity Float?     @map("plagiarism_similarity")
+  submittedAt          DateTime   @default(now()) @map("submitted_at")
+  gradedAt             DateTime?  @map("graded_at")
+
+  assignment           Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student              User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
+}
+
+// ─── Assessment: Quiz Engine ──────────────────────────────────────────
+
+model Quiz {
+  id               String         @id @default(cuid())
+  courseId         String         @map("course_id")
+  moduleId         String?        @map("module_id")
+  title            String
+  description      String?
+  durationMinutes  Int            @default(30) @map("duration_minutes")
+  passingScore     Float          @default(70) @map("passing_score")
+  weightPercentage Float          @default(10) @map("weight_percentage")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module           CourseModule?  @relation(fields: [moduleId], references: [id])
+  questions        QuizQuestion[]
+  attempts         QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id                 String   @id @default(cuid())
+  quizId             String   @map("quiz_id")
+  questionText       String   @map("question_text")
+  questionType       String   @default("MULTIPLE_CHOICE") @map("question_type") // "MULTIPLE_CHOICE" | "ESSAY"
+  options            Json?    // ["Opsi A", "Opsi B", "Opsi C", "Opsi D"]
+  correctOptionIndex Int?     @map("correct_option_index")
+  points             Float    @default(10)
+
+  quiz               Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String   @map("quiz_id")
+  studentId   String   @map("student_id")
+  score       Float    @default(0)
+  answersJson Json?    @map("answers_json")
+  isPassed    Boolean  @default(false) @map("is_passed")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_attempts")
+}
+
+// ─── Thread (ARJUNA-Net Forum Research Core) ──────────────────────────
 
 model Thread {
   id            String       @id @default(cuid())
-  courseId       String       @map("course_id")
-  initiatorRole  Role         @map("initiator_role")
-  initiatorId    String       @map("initiator_id")
+  courseId      String       @map("course_id")
+  initiatorRole Role         @map("initiator_role")
+  initiatorId   String       @map("initiator_id")
   title         String       @default("")
   status        ThreadStatus @default(OPEN)
   openedAt      DateTime     @default(now()) @map("opened_at")
   closedAt      DateTime?    @map("closed_at")
 
   // Relations
-  course   Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  initiator User           @relation("ThreadInitiator", fields: [initiatorId], references: [id])
-  messages ThreadMessage[]
-  opinions Opinion[]
-  labels   DatasetLabel[]
+  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  initiator User            @relation("ThreadInitiator", fields: [initiatorId], references: [id])
+  messages  ThreadMessage[]
+  opinions  Opinion[]
+  labels    DatasetLabel[]
 
   @@index([courseId])
   @@map("threads")
@@ -121,18 +347,18 @@ model Thread {
 // ─── ThreadMessage ────────────────────────────────────────────────────
 
 model ThreadMessage {
-  id              String      @id @default(cuid())
-  threadId         String      @map("thread_id")
-  authorId         String      @map("author_id")
+  id              String          @id @default(cuid())
+  threadId        String          @map("thread_id")
+  authorId        String          @map("author_id")
   type            MessageType
-  body            String      // Rich text (HTML)
-  parentMessageId  String?     @map("parent_message_id")
-  createdAt       DateTime    @default(now()) @map("created_at")
+  body            String
+  parentMessageId String?         @map("parent_message_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
 
   // Relations
-  thread  Thread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author  User           @relation(fields: [authorId], references: [id])
-  parent  ThreadMessage? @relation("MessageParent", fields: [parentMessageId], references: [id])
+  thread  Thread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author  User            @relation(fields: [authorId], references: [id])
+  parent  ThreadMessage?  @relation("MessageParent", fields: [parentMessageId], references: [id])
   replies ThreadMessage[] @relation("MessageParent")
 
   @@index([threadId])
@@ -144,10 +370,12 @@ model ThreadMessage {
 
 model Opinion {
   id          String   @id @default(cuid())
-  threadId     String   @map("thread_id")
-  authorId     String   @map("author_id")
-  authorRole   Role     @map("author_role")
-  opinionText  String   @map("opinion_text")
+  threadId    String   @map("thread_id")
+  authorId    String   @map("author_id")
+  authorRole  Role     @map("author_role")
+  opinionText String   @map("opinion_text")
+  sentiment   String?  @map("sentiment")
+  emotion     String?  @map("emotion")
   createdAt   DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -162,7 +390,7 @@ model Opinion {
 
 model DatasetLabel {
   id                 String      @id @default(cuid())
-  threadId            String      @map("thread_id")
+  threadId           String      @map("thread_id")
   qaRelevance        Float?      @map("qa_relevance")
   afRelevance        Float?      @map("af_relevance")
   feedbackNovelty    Float?      @map("feedback_novelty")
@@ -186,11 +414,11 @@ model DatasetLabel {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  actorId    String   @map("actor_id")
-  action    String   // e.g., "CREATE_THREAD", "POST_ANSWER", "BULK_IMPORT_USERS"
-  entity    String   // e.g., "Thread", "ThreadMessage", "User"
-  entityId   String   @map("entity_id")
-  meta      Json?    // Additional context
+  actorId   String   @map("actor_id")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  meta      Json?
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations

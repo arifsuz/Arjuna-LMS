@@ -17,7 +17,21 @@ import {
   Menu,
   X,
   Sparkles,
+  BookOpen,
+  FileCheck,
+  ShieldAlert,
 } from "lucide-react";
+
+interface NavGroup {
+  groupTitle: string;
+  items: {
+    href: string;
+    label: string;
+    icon: any;
+    exact?: boolean;
+    description?: string;
+  }[];
+}
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -55,58 +69,112 @@ function AppShellInner({ children }: { children: ReactNode }) {
   if (!user) return null;
 
   const isAdmin = user.role === "ADMIN";
+  const isLecturer = user.role === "LECTURER";
+  const isStudent = user.role === "STUDENT";
 
-  const navItems = [
-    {
-      href: "/dashboard",
-      label: "Beranda Utama",
-      icon: LayoutDashboard,
-      visible: true,
-      exact: true,
-    },
-    {
-      href: "/dashboard/courses",
-      label: "Kelas Saya",
-      icon: GraduationCap,
-      visible: !isAdmin,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/users",
-      label: "Kelola Pengguna",
-      icon: Users,
-      visible: isAdmin,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/courses",
-      label: "Kelola Kelas",
-      icon: GraduationCap,
-      visible: isAdmin,
-      exact: false,
-    },
-    {
-      href: "/dashboard/admin/dataset",
-      label: "Dataset & Analisis",
-      icon: Database,
-      visible: isAdmin,
-      exact: false,
-    },
-  ].filter((item) => item.visible);
+  // Build role-based grouped navigation
+  const navGroups: NavGroup[] = [];
 
-  const roleLabel =
-    user.role === "ADMIN"
-      ? "Administrator"
-      : user.role === "LECTURER"
-        ? "Dosen Pengampu"
-        : "Mahasiswa";
+  if (isAdmin) {
+    navGroups.push(
+      {
+        groupTitle: "Pusat Kontrol",
+        items: [
+          {
+            href: "/dashboard",
+            label: "Beranda Utama",
+            icon: LayoutDashboard,
+            exact: true,
+            description: "Ringkasan metrik & aktivitas kampus",
+          },
+        ],
+      },
+      {
+        groupTitle: "Administrasi Akademik",
+        items: [
+          {
+            href: "/dashboard/admin/courses",
+            label: "Kelola Mata Kuliah & RPS",
+            icon: GraduationCap,
+            exact: false,
+            description: "Manajemen silabus, CPL, dan enrollment",
+          },
+          {
+            href: "/dashboard/admin/users",
+            label: "Kelola Pengguna",
+            icon: Users,
+            exact: false,
+            description: "Manajemen akun dosen & mahasiswa",
+          },
+        ],
+      },
+      {
+        groupTitle: "Pusat Riset ARJUNA-Net",
+        items: [
+          {
+            href: "/dashboard/admin/dataset",
+            label: "Dataset & Anotasi AI",
+            icon: Database,
+            exact: false,
+            description: "Studio anotasi & ekspor dataset 15 kolom",
+          },
+        ],
+      }
+    );
+  } else if (isLecturer) {
+    navGroups.push({
+      groupTitle: "Ruang Pengajaran",
+      items: [
+        {
+          href: "/dashboard",
+          label: "Beranda Utama",
+          icon: LayoutDashboard,
+          exact: true,
+          description: "Jadwal kuliah daring & tugas terkini",
+        },
+        {
+          href: "/dashboard/courses",
+          label: "Mata Kuliah & RPS Saya",
+          icon: GraduationCap,
+          exact: false,
+          description: "Modul, kuis, tugas, & buku nilai",
+        },
+      ],
+    });
+  } else {
+    // Student
+    navGroups.push({
+      groupTitle: "Ruang Belajar Mahasiswa",
+      items: [
+        {
+          href: "/dashboard",
+          label: "Beranda Utama",
+          icon: LayoutDashboard,
+          exact: true,
+          description: "Jadwal perkuliahan & pengumuman",
+        },
+        {
+          href: "/dashboard/courses",
+          label: "Mata Kuliah & Modul Saya",
+          icon: BookOpen,
+          exact: false,
+          description: "Akses materi, kuis, tugas & forum",
+        },
+      ],
+    });
+  }
 
-  const roleBadgeStyle =
-    user.role === "ADMIN"
-      ? "bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e] border-[#C9A05C]/50"
-      : user.role === "LECTURER"
-        ? "bg-[#0A3266]/15 dark:bg-[#0A3266]/40 text-[#0A3266] dark:text-[#8bb8f0] border-[#0A3266]/40 dark:border-[#C9A05C]/40"
-        : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30";
+  const roleLabel = isAdmin
+    ? "Administrator"
+    : isLecturer
+      ? "Dosen Pengampu"
+      : "Mahasiswa";
+
+  const roleBadgeStyle = isAdmin
+    ? "bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e] border-[#C9A05C]/50"
+    : isLecturer
+      ? "bg-[#0A3266]/15 dark:bg-[#0A3266]/40 text-[#0A3266] dark:text-[#8bb8f0] border-[#0A3266]/40 dark:border-[#C9A05C]/40"
+      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30";
 
   return (
     <div className="flex min-h-screen bg-[#FBF8F3] dark:bg-[#061a3b] text-[#0A3266] dark:text-[#FBF8F3] relative selection:bg-[#C9A05C]/30 selection:text-[#C9A05C] transition-colors duration-300">
@@ -163,11 +231,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
               </span>
               <Sparkles className="h-3 w-3 text-[#C9A05C]" />
             </div>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-[#dbb779]">Ruang Kolaborasi Kelas</p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-[#dbb779]">
+              {isAdmin ? "Pusat Administrasi & Riset" : isLecturer ? "Workspace Dosen Pengampu" : "Ruang Kolaborasi Kelas"}
+            </p>
           </div>
         </div>
 
-        {/* ═══ Theme Switcher Placed Directly Below Brand Logo Header ═══ */}
+        {/* ═══ Theme Switcher ═══ */}
         <div className="px-5 pt-4 pb-1">
           <div className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]/75">
             Pilihan Tema
@@ -175,42 +245,56 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <ThemeToggle variant="segmented" className="w-full" />
         </div>
 
-        {/* Navigation Menu */}
-        <nav aria-label="Menu Utama" className="flex-1 space-y-1.5 px-4 py-4 overflow-y-auto">
-          <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]/80">
-            Menu Navigasi
-          </div>
-          {navItems.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + "/");
+        {/* Navigation Menu by Authorization Groups */}
+        <nav aria-label="Menu Utama" className="flex-1 space-y-4 px-4 py-4 overflow-y-auto no-scrollbar">
+          {navGroups.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-1.5">
+              <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]/80">
+                {group.groupTitle}
+              </div>
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group flex items-center gap-3.5 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? "bg-gradient-to-r from-[#0A3266]/15 via-[#0A3266]/10 to-[#C9A05C]/15 dark:from-[#C9A05C]/25 dark:via-[#C9A05C]/15 dark:to-[#0A3266]/35 text-[#0A3266] dark:text-[#FBF8F3] border border-[#0A3266]/30 dark:border-[#C9A05C]/50 shadow-lg shadow-[#0A3266]/5"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-[#0A3266]/40 hover:text-[#0A3266] dark:hover:text-[#FBF8F3]"
-                }`}
-              >
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
-                    isActive
-                      ? "bg-[#0A3266] dark:bg-[#C9A05C] text-white dark:text-[#04132b] shadow-md shadow-[#0A3266]/20 dark:shadow-[#C9A05C]/30"
-                      : "bg-black/5 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 group-hover:text-[#0A3266] dark:group-hover:text-[#C9A05C] group-hover:bg-black/10 dark:group-hover:bg-[#0A3266]/50"
-                  }`}
-                >
-                  <item.icon className="h-4.5 w-4.5 shrink-0" />
-                </div>
-                <span className="flex-1">{item.label}</span>
-                {isActive && (
-                  <ChevronRight className="h-4 w-4 text-[#C9A05C]" />
-                )}
-              </Link>
-            );
-          })}
+              {group.items.map((item) => {
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`group flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#0A3266]/15 via-[#0A3266]/10 to-[#C9A05C]/15 dark:from-[#C9A05C]/25 dark:via-[#C9A05C]/15 dark:to-[#0A3266]/35 text-[#0A3266] dark:text-[#FBF8F3] border border-[#0A3266]/30 dark:border-[#C9A05C]/50 shadow-md shadow-[#0A3266]/5"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-[#0A3266]/40 hover:text-[#0A3266] dark:hover:text-[#FBF8F3]"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                        isActive
+                          ? "bg-[#0A3266] dark:bg-[#C9A05C] text-white dark:text-[#04132b] shadow-md shadow-[#0A3266]/20 dark:shadow-[#C9A05C]/30"
+                          : "bg-black/5 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 group-hover:text-[#0A3266] dark:group-hover:text-[#C9A05C] group-hover:bg-black/10 dark:group-hover:bg-[#0A3266]/50"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-bold">{item.label}</div>
+                      {item.description && (
+                        <div className="truncate text-[10px] font-normal text-slate-400 dark:text-slate-400/80">
+                          {item.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {isActive && (
+                      <ChevronRight className="h-4 w-4 text-[#C9A05C] shrink-0" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User Card & Clean Logout Button */}
