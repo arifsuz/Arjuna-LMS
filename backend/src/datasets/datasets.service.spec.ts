@@ -1,0 +1,205 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { DatasetsService, DatasetRow } from './datasets.service';
+import { PrismaService } from '../common/prisma';
+import { LabelSource } from '@prisma/client';
+
+describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipeline)', () => {
+  let service: DatasetsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const mockPrisma = {
+      course: {
+        count: jest.fn().mockResolvedValue(5),
+      },
+      datasetLabel: {
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        upsert: jest.fn(),
+        count: jest.fn().mockResolvedValue(10),
+      },
+      thread: {
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        count: jest.fn().mockResolvedValue(8),
+      },
+      threadMessage: {
+        count: jest.fn().mockResolvedValue(32),
+      },
+      opinion: {
+        count: jest.fn().mockResolvedValue(8),
+      },
+      user: {
+        findMany: jest.fn(),
+      },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DatasetsService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+
+    service = module.get<DatasetsService>(DatasetsService);
+    prisma = module.get(PrismaService);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 1. NLP HEURISTIC EMOTION & SENTIMENT PIPELINE
+  // ══════════════════════════════════════════════════════════════════════════
+  describe('NLP Annotation & Emotion/Sentiment Heuristics', () => {
+    it('TC-DATA-001: Should assign Happiness emotion and Positif sentiment for positive student answer and opinion', () => {
+      const question = 'Bagaimana cara kerja rekursi pada struktur data tree?';
+      const answer =
+        'Saya sangat memahami konsep rekursi traversing preorder dan inorder, sangat jelas dan menyenangkan.';
+      const feedback = 'Penjelasan Anda sangat bagus dan tepat.';
+      const reaction = 'Terima kasih banyak atas feedbacknya pak.';
+      const opinion = 'Materi ini sangat mudah dipahami dan saya merasa puas.';
+
+      const labels = service.computeAutoLabels(question, answer, feedback, reaction, opinion);
+
+      expect(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness']).toContain(labels.studentEmotion);
+      expect(['Positif', 'Negatif']).toContain(labels.studentSentiment);
+      expect(labels.studentEmotion).toBe('Happiness');
+      expect(labels.studentSentiment).toBe('Positif');
+      expect(labels.qaRelevance).toBeGreaterThan(0.6);
+      expect(labels.interactionQuality).toBeGreaterThan(0.7);
+    });
+
+    it('TC-DATA-002: Should assign Sadness/Fear emotion and Negatif sentiment for confused/difficult student opinion', () => {
+      const question = 'Jelaskan kompleksitas waktu Dijkstra Algorithm';
+      const answer = 'Waktunya O(V^2) atau O(E log V)';
+      const feedback = 'Perhatikan implementasi min-heap.';
+      const reaction = 'Saya masih bingung.';
+      const opinion = 'Saya merasa sangat kesulitan, cemas, dan gagal paham dengan materi graf ini.';
+
+      const labels = service.computeAutoLabels(question, answer, feedback, reaction, opinion);
+
+      expect(['Fear', 'Sadness', 'Anger', 'Disgust']).toContain(labels.studentEmotion);
+      expect(labels.studentSentiment).toBe('Negatif');
+    });
+
+    it('TC-DATA-003: Should compute interaction quality using alpha=0.4, beta=0.35, gamma=0.25 formula', () => {
+      const question = 'Apa itu Binary Search Tree?';
+      const answer =
+        'BST adalah struktur data pohon biner di mana subtree kiri lebih kecil dan kanan lebih besar.';
+      const feedback = 'Tepat sekali, jangan lupa kondisi seimbang AVL.';
+      const reaction = 'Baik, terima kasih penjelasannya.';
+      const opinion = 'Sangat membantu.';
+
+      const labels = service.computeAutoLabels(question, answer, feedback, reaction, opinion);
+
+      expect(labels.qaRelevance).toBeGreaterThanOrEqual(0.0);
+      expect(labels.qaRelevance).toBeLessThanOrEqual(1.0);
+      expect(labels.afRelevance).toBeGreaterThanOrEqual(0.0);
+      expect(labels.afRelevance).toBeLessThanOrEqual(1.0);
+      expect(labels.feedbackNovelty).toBeGreaterThanOrEqual(0.0);
+      expect(labels.feedbackNovelty).toBeLessThanOrEqual(1.0);
+      expect(labels.interactionQuality).toBeGreaterThanOrEqual(0.0);
+      expect(labels.interactionQuality).toBeLessThanOrEqual(1.0);
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 2. 15-COLUMN DATASET EXPORT & FORMATTING
+  // ══════════════════════════════════════════════════════════════════════════
+  describe('Dataset 15-Column Export (ARJUNA-Net ML Format)', () => {
+    it('TC-DATA-004: Should format rows with exact 15 standard columns', async () => {
+      prisma.thread.findMany.mockResolvedValue([
+        {
+          id: 'thread-1',
+          title: 'Diskusi Minggu 1',
+          courseId: 'course-1',
+          course: {
+            code: 'IF-101',
+            name: 'Pemrograman Web',
+            lecturerId: 'dosen-1',
+            enrollments: [
+              {
+                student: { id: 'mhs-1', name: 'Mahasiswa 1' },
+              },
+            ],
+          },
+          messages: [
+            {
+              id: 'm-1',
+              type: 'QUESTION',
+              authorId: 'dosen-1',
+              body: 'Bagaimana peran DOM dalam browser?',
+            },
+            {
+              id: 'm-2',
+              type: 'ANSWER',
+              authorId: 'mhs-1',
+              author: { id: 'mhs-1', name: 'Mahasiswa 1' },
+              body: 'DOM adalah representasi objek dokumen HTML.',
+            },
+            {
+              id: 'm-3',
+              type: 'FEEDBACK',
+              authorId: 'dosen-1',
+              author: { id: 'dosen-1', name: 'Dosen 1' },
+              body: 'Bagus, dapat dimanipulasi dengan JavaScript.',
+            },
+          ],
+          opinions: [
+            {
+              userId: 'mhs-1',
+              opinionText: 'Saya paham sekarang.',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+          ],
+          labels: [],
+        },
+      ]);
+
+      const rows: DatasetRow[] = await service.buildDatasetRows({});
+
+      expect(rows).toBeInstanceOf(Array);
+      expect(rows.length).toBeGreaterThan(0);
+
+      const firstRow = rows[0];
+      const requiredColumns = [
+        'Course_ID',
+        'Lecturer_ID',
+        'Student_ID',
+        'Lecturer_Question',
+        'Student_Answer',
+        'Lecturer_Feedback',
+        'Student_Reaction',
+        'Student_Opinion',
+        'Q-A_Relevance',
+        'A-F_Relevance',
+        'Feedback_Novalty',
+        'Student_Sentiment',
+        'Student_Emotion',
+        'Lecturer_Emotion',
+        'Interaction_Quality',
+      ];
+
+      requiredColumns.forEach((col) => {
+        expect(firstRow).toHaveProperty(col);
+      });
+
+      // Verify emotion and sentiment validity
+      expect(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness']).toContain(firstRow.Student_Emotion);
+      expect(['Positif', 'Negatif']).toContain(firstRow.Student_Sentiment);
+    });
+
+    it('TC-DATA-005: Should aggregate dataset statistics for Admin dashboard', async () => {
+      const summary = await service.getSummary();
+
+      expect(summary).toHaveProperty('totalCourses');
+      expect(summary).toHaveProperty('totalThreads');
+      expect(summary).toHaveProperty('totalMessages');
+      expect(summary).toHaveProperty('totalAnswers');
+      expect(summary).toHaveProperty('totalOpinions');
+      expect(summary).toHaveProperty('totalLabels');
+      expect(summary).toHaveProperty('readinessScore');
+    });
+  });
+});

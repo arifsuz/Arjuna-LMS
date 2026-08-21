@@ -292,12 +292,16 @@ export class DatasetsService {
       // If there are enrolled students, generate a row for each enrolled student or each answering student
       const targetStudents =
         answers.length > 0
-          ? answers.map((a) => a.author)
-          : thread.course.enrollments.map((e) => e.student);
+          ? answers.map((a) => a.author || { id: a.authorId, name: 'Student' })
+          : (thread.course.enrollments || []).map((e) => e.student || { id: e.studentId, name: 'Student' });
 
-      // Dedup students
+      // Dedup students safely
       const uniqueStudents = Array.from(
-        new Map(targetStudents.map((s) => [s.id, s])).values(),
+        new Map(
+          targetStudents
+            .filter((s) => s && s.id)
+            .map((s) => [s.id, s]),
+        ).values(),
       );
 
       for (const student of uniqueStudents) {
