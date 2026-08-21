@@ -1,4 +1,41 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+
+    // 1. Localhost development
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.")
+    ) {
+      return envUrl || "http://localhost:4000/api";
+    }
+
+    // 2. Production build with explicit non-localhost URL
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+      return envUrl;
+    }
+
+    // 3. Dynamic domain resolution when on live domain
+    if (hostname.includes("sandiwarno.tech")) {
+      return `${protocol}//arjuna-api.sandiwarno.tech/api`;
+    }
+    if (hostname.startsWith("arjuna-lms.")) {
+      return `${protocol}//${hostname.replace(/^arjuna-lms\./, "arjuna-api.")}/api`;
+    }
+    if (hostname.startsWith("lms.")) {
+      return `${protocol}//${hostname.replace(/^lms\./, "api.")}/api`;
+    }
+
+    // Fallback for live production domain
+    return "https://arjuna-api.sandiwarno.tech/api";
+  }
+
+  return envUrl || "http://localhost:4000/api";
+}
 
 interface ApiOptions extends RequestInit {
   json?: any;
@@ -29,7 +66,8 @@ async function request<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const apiBase = getApiBaseUrl();
+  const res = await fetch(`${apiBase}${endpoint}`, {
     ...rest,
     headers,
     credentials: "include", // Send cookies (JWT httpOnly)
@@ -199,7 +237,8 @@ export const datasets = {
     const params = new URLSearchParams();
     if (courseId) params.append("courseId", courseId);
     params.append("format", format);
-    return `${API_BASE}/admin/dataset/export?${params.toString()}`;
+    const apiBase = getApiBaseUrl();
+    return `${apiBase}/admin/dataset/export?${params.toString()}`;
   },
 
   listThreads: (paramsObj?: {
