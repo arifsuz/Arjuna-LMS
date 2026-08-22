@@ -1,8 +1,8 @@
 # ─── Stage 1: Build ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-# Install build dependencies for native modules (e.g. argon2/node-gyp) & Prisma
-RUN apk add --no-cache python3 make g++ libc6-compat openssl
+# Install build & runtime dependencies for Prisma and native modules
+RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 
