@@ -56,6 +56,7 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-arjuna-access-secret-prod-change-me-32chars}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-arjuna-refresh-secret-prod-change-me-32chars}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://lms.domainanda.com,http://localhost:3000}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.sandiwarno.tech}
     ports:
       - "4000:4000"
     networks:
