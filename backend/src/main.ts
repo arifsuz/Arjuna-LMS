@@ -38,8 +38,12 @@ async function bootstrap() {
     'CORS_ORIGIN',
     'http://localhost:3000',
   );
+  const origins = corsOrigin.includes(',')
+    ? corsOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+    : corsOrigin.trim();
+
   app.enableCors({
-    origin: corsOrigin.includes(',') ? corsOrigin.split(',') : corsOrigin,
+    origin: origins,
     credentials: true,
   });
 

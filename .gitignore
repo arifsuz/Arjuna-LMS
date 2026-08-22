@@ -31,8 +31,6 @@ next-env.d.ts
 
 # Database Dumps, Backups & Exports (Crucial Security)
 seed-data/
-**/seed.ts
-**/seed.js
 *.sql
 *.dump
 dumps/
