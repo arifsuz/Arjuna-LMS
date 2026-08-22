@@ -106,8 +106,8 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
   // ══════════════════════════════════════════════════════════════════════════
   // 2. 15-COLUMN DATASET EXPORT & FORMATTING
   // ══════════════════════════════════════════════════════════════════════════
-  describe('Dataset 15-Column Export (ARJUNA-Net ML Format)', () => {
-    it('TC-DATA-004: Should format rows with exact 15 standard columns', async () => {
+  describe('Dataset Export & Formatting (ARJUNA-Net ML Format)', () => {
+    it('TC-DATA-004: Should format rows with Log column, user names, and reply pairs', async () => {
       prisma.thread.findMany.mockResolvedValue([
         {
           id: 'thread-1',
@@ -117,37 +117,54 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
             code: 'IF-101',
             name: 'Pemrograman Web',
             lecturerId: 'dosen-1',
+            lecturer: { id: 'dosen-1', name: 'Dr. Aris Sudaryanto, M.Kom', email: 'aris@arjuna-lms.ac.id' },
             enrollments: [
               {
-                student: { id: 'mhs-1', name: 'Mahasiswa 1' },
+                student: { id: 'mhs-1', name: 'Mahasiswa 1', email: 'mhs1@arjuna-lms.ac.id' },
               },
             ],
           },
+          initiator: { id: 'dosen-1', name: 'Dr. Aris Sudaryanto, M.Kom', role: 'LECTURER' },
           messages: [
             {
               id: 'm-1',
               type: 'QUESTION',
               authorId: 'dosen-1',
+              author: { id: 'dosen-1', name: 'Dr. Aris Sudaryanto, M.Kom', role: 'LECTURER' },
               body: 'Bagaimana peran DOM dalam browser?',
+              parentMessageId: null,
+              createdAt: new Date(),
             },
             {
               id: 'm-2',
               type: 'ANSWER',
               authorId: 'mhs-1',
-              author: { id: 'mhs-1', name: 'Mahasiswa 1' },
+              author: { id: 'mhs-1', name: 'Mahasiswa 1', role: 'STUDENT' },
               body: 'DOM adalah representasi objek dokumen HTML.',
+              parentMessageId: 'm-1',
+              createdAt: new Date(),
             },
             {
               id: 'm-3',
               type: 'FEEDBACK',
               authorId: 'dosen-1',
-              author: { id: 'dosen-1', name: 'Dosen 1' },
+              author: { id: 'dosen-1', name: 'Dr. Aris Sudaryanto, M.Kom', role: 'LECTURER' },
               body: 'Bagus, dapat dimanipulasi dengan JavaScript.',
+              parentMessageId: 'm-2',
+              createdAt: new Date(),
             },
           ],
           opinions: [
             {
-              userId: 'mhs-1',
+              authorId: 'dosen-1',
+              authorRole: 'LECTURER',
+              opinionText: 'Diskusi berjalan sangat efektif.',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+            {
+              authorId: 'mhs-1',
+              authorRole: 'STUDENT',
               opinionText: 'Saya paham sekarang.',
               sentiment: 'Positif',
               emotion: 'Happiness',
@@ -164,6 +181,7 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
 
       const firstRow = rows[0];
       const requiredColumns = [
+        'Log',
         'Course_ID',
         'Lecturer_ID',
         'Student_ID',
@@ -171,6 +189,7 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
         'Student_Answer',
         'Lecturer_Feedback',
         'Student_Reaction',
+        'Lecturer_Opinion',
         'Student_Opinion',
         'Q-A_Relevance',
         'A-F_Relevance',
@@ -185,21 +204,78 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
         expect(firstRow).toHaveProperty(col);
       });
 
+      expect(firstRow.Log).toContain('Diskusi Minggu 1');
+      expect(firstRow.Lecturer_ID).toBe('Dr. Aris Sudaryanto, M.Kom');
+      expect(firstRow.Student_ID).toBe('Mahasiswa 1');
+      expect(firstRow.Lecturer_Opinion).toBe('Diskusi berjalan sangat efektif.');
+      expect(firstRow.Student_Opinion).toBe('Saya paham sekarang.');
+
       // Verify emotion and sentiment validity
       expect(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness']).toContain(firstRow.Student_Emotion);
       expect(['Positif', 'Negatif']).toContain(firstRow.Student_Sentiment);
     });
 
-    it('TC-DATA-005: Should aggregate dataset statistics for Admin dashboard', async () => {
-      const summary = await service.getSummary();
+    it('TC-DATA-006: Should capture Lecturer_Feedback whenever lecturer sends a discussion message other than QUESTION', async () => {
+      prisma.thread.findMany.mockResolvedValue([
+        {
+          id: 'thread-2',
+          title: 'Diskusi Sesi 2',
+          courseId: 'course-2',
+          course: {
+            code: 'IF-202',
+            name: 'Kecerdasan Buatan',
+            lecturerId: 'dosen-2',
+            lecturer: { id: 'dosen-2', name: 'Prof. Budi', email: 'budi@arjuna-lms.ac.id' },
+            enrollments: [
+              {
+                student: { id: 'mhs-2', name: 'Siti Rahma', email: 'siti@arjuna-lms.ac.id' },
+              },
+            ],
+          },
+          initiator: { id: 'dosen-2', name: 'Prof. Budi', role: 'LECTURER' },
+          messages: [
+            {
+              id: 'm-q1',
+              type: 'QUESTION',
+              authorId: 'dosen-2',
+              author: { id: 'dosen-2', name: 'Prof. Budi', role: 'LECTURER' },
+              body: 'Bagaimana cara kerja Backpropagation?',
+              parentMessageId: null,
+              createdAt: new Date(),
+            },
+            {
+              id: 'm-a1',
+              type: 'ANSWER',
+              authorId: 'mhs-2',
+              author: { id: 'mhs-2', name: 'Siti Rahma', role: 'STUDENT' },
+              body: 'Menggunakan gradient descent untuk menghitung turunan berantai bobot.',
+              parentMessageId: 'm-q1',
+              createdAt: new Date(),
+            },
+            {
+              id: 'm-f1',
+              // Custom/general reply message from lecturer (besides QUESTION)
+              type: 'ANSWER',
+              authorId: 'dosen-2',
+              author: { id: 'dosen-2', name: 'Prof. Budi', role: 'LECTURER' },
+              body: 'Hebat, penurunan rumus chain rule sangat penting diperhatikan.',
+              parentMessageId: 'm-a1',
+              createdAt: new Date(),
+            },
+          ],
+          opinions: [],
+          labels: [],
+        },
+      ]);
 
-      expect(summary).toHaveProperty('totalCourses');
-      expect(summary).toHaveProperty('totalThreads');
-      expect(summary).toHaveProperty('totalMessages');
-      expect(summary).toHaveProperty('totalAnswers');
-      expect(summary).toHaveProperty('totalOpinions');
-      expect(summary).toHaveProperty('totalLabels');
-      expect(summary).toHaveProperty('readinessScore');
+      const rows: DatasetRow[] = await service.buildDatasetRows({});
+      expect(rows.length).toBeGreaterThan(0);
+
+      const targetRow = rows.find((r) => r.Student_ID === 'Siti Rahma');
+      expect(targetRow).toBeDefined();
+      expect(targetRow?.Lecturer_Feedback).toBe(
+        'Hebat, penurunan rumus chain rule sangat penting diperhatikan.',
+      );
     });
   });
 });

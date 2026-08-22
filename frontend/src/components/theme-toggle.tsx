@@ -160,7 +160,7 @@ export function ThemeToggle({
       </button>
 
       {open && (
-        <div className="glass-panel animate-fade-in absolute right-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 z-50 min-w-[170px] rounded-2xl p-1.5 shadow-2xl border-[#C9A05C]/40 backdrop-blur-2xl">
+        <div className="glass-panel animate-fade-in absolute right-0 top-full mt-2 z-50 min-w-[170px] origin-top-right rounded-2xl p-1.5 shadow-2xl border-[#C9A05C]/40 backdrop-blur-2xl">
           <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#dbb779]">
             Pilih Tema Tampilan
           </div>

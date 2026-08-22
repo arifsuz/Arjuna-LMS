@@ -64,9 +64,9 @@ export class OpinionsService {
       opinion = await this.prisma.opinion.update({
         where: { id: existing.id },
         data: {
-          opinionText: dto.opinionText,
-          sentiment: dto.sentiment || existing.sentiment,
-          emotion: dto.emotion || existing.emotion,
+          opinionText: dto.opinionText !== undefined ? dto.opinionText : existing.opinionText,
+          sentiment: dto.sentiment !== undefined ? (dto.sentiment || null) : existing.sentiment,
+          emotion: dto.emotion !== undefined ? (dto.emotion || null) : existing.emotion,
         },
         include: {
           author: {
@@ -80,7 +80,7 @@ export class OpinionsService {
           threadId,
           authorId: userId,
           authorRole: userRole,
-          opinionText: dto.opinionText,
+          opinionText: dto.opinionText || '',
           sentiment: dto.sentiment || null,
           emotion: dto.emotion || null,
         },

@@ -1,18 +1,17 @@
 import { IsString, IsNotEmpty, MinLength, IsOptional, IsIn } from 'class-validator';
 
 export class CreateOpinionDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  @MinLength(3, { message: 'Opini minimal berisi 3 karakter' })
-  opinionText: string;
+  opinionText?: string;
 
   @IsOptional()
   @IsString()
-  @IsIn(['Positif', 'Negatif'])
+  @IsIn(['Positif', 'Negatif', 'Netral', ''])
   sentiment?: string;
 
   @IsOptional()
   @IsString()
-  @IsIn(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness'])
+  @IsIn(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness', 'Neutral', 'Supportive', ''])
   emotion?: string;
 }

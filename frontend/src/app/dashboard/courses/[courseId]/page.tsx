@@ -112,6 +112,8 @@ function CourseDetailContent() {
   const [showNewThread, setShowNewThread] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
+  const [newSessionDuration, setNewSessionDuration] = useState<string>("1440"); // Default 24 Jam (1440 mins)
+  const [customExpiresAt, setCustomExpiresAt] = useState<string>("");
   const [creatingThread, setCreatingThread] = useState(false);
 
   // Tab 3: Virtual Meetings
@@ -246,14 +248,25 @@ function CourseDetailContent() {
     if (!newTitle.trim() || !newBody.trim()) return;
     setCreatingThread(true);
     try {
-      await threadsApi.create(courseId, { title: newTitle, body: newBody });
+      const payload: any = { title: newTitle, body: newBody };
+      if (newSessionDuration === "CUSTOM") {
+        if (customExpiresAt) {
+          payload.expiresAt = new Date(customExpiresAt).toISOString();
+        }
+      } else if (newSessionDuration) {
+        payload.durationMinutes = Number(newSessionDuration);
+      }
+
+      await threadsApi.create(courseId, payload);
       const threadsData = await threadsApi.list(courseId);
       setThreadList(threadsData.data || []);
       setShowNewThread(false);
       setNewTitle("");
       setNewBody("");
-    } catch (err) {
-      console.error(err);
+      setNewSessionDuration("1440");
+      setCustomExpiresAt("");
+    } catch (err: any) {
+      alert(err.message || "Gagal membuka forum diskusi");
     } finally {
       setCreatingThread(false);
     }
@@ -897,7 +910,64 @@ function CourseDetailContent() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2">
+                {/* Session Duration Selector */}
+                <div className="rounded-2xl border border-black/10 dark:border-[#C9A05C]/30 bg-black/[0.02] dark:bg-[#030d1d]/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-[#C9A05C]" />
+                      <span>Waktu Sesi Dibuka (Batas Waktu Diskusi)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Otomatis ditutup saat kadaluarsa
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <select
+                        value={newSessionDuration}
+                        onChange={(e) => setNewSessionDuration(e.target.value)}
+                        className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
+                      >
+                        <option value="60">1 Jam</option>
+                        <option value="120">2 Jam</option>
+                        <option value="360">6 Jam</option>
+                        <option value="720">12 Jam</option>
+                        <option value="1440">24 Jam (1 Hari) - Rekomendasi</option>
+                        <option value="2880">2 Hari (48 Jam)</option>
+                        <option value="4320">3 Hari</option>
+                        <option value="10080">7 Hari (1 Minggu)</option>
+                        <option value="CUSTOM">Kustom Tanggal & Waktu...</option>
+                      </select>
+                    </div>
+
+                    {newSessionDuration === "CUSTOM" ? (
+                      <div>
+                        <input
+                          type="datetime-local"
+                          value={customExpiresAt}
+                          onChange={(e) => setCustomExpiresAt(e.target.value)}
+                          required
+                          className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-[11px] text-slate-500 dark:text-slate-400">
+                        <span>
+                          Forum akan aktif selama{" "}
+                          <strong className="text-[#8c6828] dark:text-[#ebd09e]">
+                            {Number(newSessionDuration) >= 1440
+                              ? `${Number(newSessionDuration) / 1440} Hari`
+                              : `${Number(newSessionDuration) / 60} Jam`}
+                          </strong>{" "}
+                          sejak dipublikasikan.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowNewThread(false)}
@@ -920,59 +990,81 @@ function CourseDetailContent() {
 
           {/* Threads List Cards */}
           <div className="space-y-3">
-            {threadList.map((thread) => (
-              <Link
-                key={thread.id}
-                href={`/dashboard/courses/${courseId}/threads/${thread.id}`}
-                className="glass-card block rounded-3xl p-5 sm:p-6 transition-all hover:border-[#C9A05C]/50 hover:shadow-xl group"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-lg px-2.5 py-0.5 text-[11px] font-bold ${
-                          thread.initiatorRole === "LECTURER"
-                            ? "bg-[#0A3266]/15 dark:bg-[#0A3266]/40 text-[#0A3266] dark:text-[#8bb8f0] border border-[#0A3266]/30"
-                            : "bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e] border border-[#C9A05C]/40"
-                        }`}
-                      >
-                        {thread.initiatorRole === "LECTURER" ? "Pertanyaan Dosen" : "Pertanyaan Mahasiswa"}
-                      </span>
+            {threadList.map((thread) => {
+              const isExpired =
+                thread.status === "CLOSED" ||
+                (thread.expiresAt && new Date() > new Date(thread.expiresAt));
 
-                      <span
-                        className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${
-                          thread.status === "OPEN"
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
-                            : "bg-rose-500/15 text-rose-600 dark:text-rose-300"
-                        }`}
-                      >
-                        {thread.status === "OPEN" ? "Diskusi Terbuka" : "Ditutup"}
-                      </span>
+              return (
+                <Link
+                  key={thread.id}
+                  href={`/dashboard/courses/${courseId}/threads/${thread.id}`}
+                  className="glass-card block rounded-3xl p-5 sm:p-6 transition-all hover:border-[#C9A05C]/50 hover:shadow-xl group"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-lg px-2.5 py-0.5 text-[11px] font-bold ${
+                            thread.initiatorRole === "LECTURER"
+                              ? "bg-[#0A3266]/15 dark:bg-[#0A3266]/40 text-[#0A3266] dark:text-[#8bb8f0] border border-[#0A3266]/30"
+                              : "bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e] border border-[#C9A05C]/40"
+                          }`}
+                        >
+                          {thread.initiatorRole === "LECTURER" ? "Pertanyaan Dosen" : "Pertanyaan Mahasiswa"}
+                        </span>
+
+                        <span
+                          className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${
+                            !isExpired
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                              : "bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                          }`}
+                        >
+                          {!isExpired ? "Diskusi Terbuka" : "Sesi Ditutup / Kadaluarsa"}
+                        </span>
+
+                        {thread.expiresAt && (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            <Clock className="h-3 w-3 text-[#C9A05C]" />
+                            <span>
+                              {isExpired
+                                ? "Sesi Berakhir"
+                                : `Batas Sesi: ${new Date(thread.expiresAt).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}`}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-base font-bold text-[#0A3266] dark:text-white group-hover:text-[#8c6828] dark:group-hover:text-[#ebd09e] transition-colors">
+                        {thread.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Oleh: <span className="font-semibold text-slate-700 dark:text-slate-300">{thread.initiator?.name}</span> · {new Date(thread.openedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                      </p>
                     </div>
 
-                    <h3 className="text-base font-bold text-[#0A3266] dark:text-white group-hover:text-[#8c6828] dark:group-hover:text-[#ebd09e] transition-colors">
-                      {thread.title}
-                    </h3>
-
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Oleh: <span className="font-semibold text-slate-700 dark:text-slate-300">{thread.initiator?.name}</span> · {new Date(thread.openedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right text-xs">
-                      <div className="font-bold text-[#0A3266] dark:text-white">
-                        {thread._count?.messages || 0} Tanggapan
+                    <div className="flex items-center gap-4">
+                      <div className="text-right text-xs">
+                        <div className="font-bold text-[#0A3266] dark:text-white">
+                          {thread._count?.messages || 0} Tanggapan
+                        </div>
+                        <div className="text-[11px] text-[#8c6828] dark:text-[#C9A05C]">
+                          {thread._count?.opinions || 0} Refleksi Opini
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#8c6828] dark:text-[#C9A05C]">
-                        {thread._count?.opinions || 0} Refleksi Opini
-                      </div>
+                      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

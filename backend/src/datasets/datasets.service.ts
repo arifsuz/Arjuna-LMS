@@ -5,6 +5,7 @@ import { CreateDatasetLabelDto, QueryDatasetExportDto } from './dto';
 import * as csv from 'fast-csv';
 
 export interface DatasetRow {
+  Log: string;
   Course_ID: string;
   Lecturer_ID: string;
   Student_ID: string;
@@ -12,6 +13,7 @@ export interface DatasetRow {
   Student_Answer: string;
   Lecturer_Feedback: string;
   Student_Reaction: string;
+  Lecturer_Opinion: string;
   Student_Opinion: string;
   'Q-A_Relevance': string | number;
   'A-F_Relevance': string | number;
@@ -35,6 +37,15 @@ export interface ComputedAutoLabels {
 @Injectable()
 export class DatasetsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Helper to format readable log timestamps: YYYY-MM-DD HH:mm:ss
+   */
+  private formatLogDate(date: Date | string | null | undefined): string {
+    const d = date ? new Date(date) : new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
 
   /**
    * NLP Heuristic Engine aligned with ARJUNA-Net Pipeline (Stage 3 & 4):
@@ -230,7 +241,8 @@ export class DatasetsService {
 
   /**
    * Aggregate interaction threads into structured dataset rows.
-   * 1:1 mapping with PRD Image 2 and ARJUNA-Net 15-column schema.
+   * Pulls all messages and nested replies, pairing questions and answers cleanly.
+   * Lecturer_ID and Student_ID use names, and Log details the interaction.
    */
   async buildDatasetRows(query: QueryDatasetExportDto): Promise<DatasetRow[]> {
     const where: any = {};
@@ -255,9 +267,17 @@ export class DatasetsService {
             },
           },
         },
+        initiator: {
+          select: { id: true, name: true, role: true },
+        },
         messages: {
           include: {
             author: { select: { id: true, name: true, email: true, role: true } },
+            parent: {
+              include: {
+                author: { select: { id: true, name: true, role: true } },
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -277,113 +297,296 @@ export class DatasetsService {
     const rows: DatasetRow[] = [];
 
     for (const thread of threads) {
-      const questionMsg = thread.messages.find(
-        (m) => m.type === MessageType.QUESTION,
-      );
-      const questionText = questionMsg ? this.cleanText(questionMsg.body) : '';
-
+      const courseCode = thread.course.code || thread.course.name || thread.course.id;
+      const defaultLecturerName = thread.course.lecturer?.name || 'Dosen Pengampu';
       const threadLabel = thread.labels[0] || null;
 
-      // Group answers by student
-      const answers = thread.messages.filter(
-        (m) => m.type === MessageType.ANSWER,
+      // Extract lecturer opinion from thread opinions
+      const lecturerOpinionObj = thread.opinions.find(
+        (o) => o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId,
+      );
+      const lecturerOpinion = lecturerOpinionObj
+        ? this.cleanText(lecturerOpinionObj.opinionText)
+        : '';
+
+      const messageMap = new Map<string, any>();
+      thread.messages.forEach((m) => messageMap.set(m.id, m));
+
+      // Root question message
+      const rootQuestionMsg =
+        thread.messages.find((m) => m.type === MessageType.QUESTION && !m.parentMessageId) ||
+        thread.messages[0] ||
+        null;
+      const rootQuestionText = rootQuestionMsg ? this.cleanText(rootQuestionMsg.body) : '';
+
+      const processedMessageIds = new Set<string>();
+
+      // Helper: check if a message is a lecturer feedback / discussion message (any message from lecturer/admin other than QUESTION)
+      const isLecturerFeedbackMsg = (m: any) =>
+        (m.author?.role === 'LECTURER' ||
+          m.author?.role === 'ADMIN' ||
+          m.authorId === thread.course.lecturerId) &&
+        m.type !== MessageType.QUESTION &&
+        m.id !== rootQuestionMsg?.id;
+
+      // 1. Process all student answers & their direct replies
+      const studentAnswers = thread.messages.filter(
+        (m) => m.type === MessageType.ANSWER && m.author.role === 'STUDENT',
       );
 
-      // If there are enrolled students, generate a row for each enrolled student or each answering student
-      const targetStudents =
-        answers.length > 0
-          ? answers.map((a) => a.author || { id: a.authorId, name: 'Student' })
-          : (thread.course.enrollments || []).map((e) => e.student || { id: e.studentId, name: 'Student' });
+      for (const answerMsg of studentAnswers) {
+        processedMessageIds.add(answerMsg.id);
 
-      // Dedup students safely
-      const uniqueStudents = Array.from(
-        new Map(
-          targetStudents
-            .filter((s) => s && s.id)
-            .map((s) => [s.id, s]),
-        ).values(),
-      );
+        // Find what question was answered (parent message or root thread question)
+        const parentMsg = answerMsg.parentMessageId
+          ? messageMap.get(answerMsg.parentMessageId)
+          : rootQuestionMsg;
 
-      for (const student of uniqueStudents) {
-        const studentAnswerMsg = thread.messages.find(
-          (m) => m.type === MessageType.ANSWER && m.authorId === student.id,
+        const questionText = parentMsg ? this.cleanText(parentMsg.body) : rootQuestionText;
+        const studentAnswer = this.cleanText(answerMsg.body);
+
+        const lecturerName =
+          (parentMsg && parentMsg.author?.role === 'LECTURER'
+            ? parentMsg.author.name
+            : defaultLecturerName);
+        const studentName = answerMsg.author.name || 'Mahasiswa';
+
+        // Find all lecturer feedback messages (any message sent by lecturer other than question)
+        // 1. First priority: messages directly replying to this student answer
+        let feedbackMsgs = thread.messages.filter(
+          (m) => isLecturerFeedbackMsg(m) && m.parentMessageId === answerMsg.id,
         );
 
-        // Feedback given by lecturer
-        const feedbackMsg = thread.messages.find(
-          (m) =>
-            m.type === MessageType.FEEDBACK &&
-            (m.parentMessageId === studentAnswerMsg?.id || !m.parentMessageId),
-        );
+        // 2. Second priority: any other lecturer messages in this thread besides question
+        if (feedbackMsgs.length === 0) {
+          const generalFeedback = thread.messages.filter(
+            (m) =>
+              isLecturerFeedbackMsg(m) &&
+              (!m.parentMessageId || m.parentMessageId === rootQuestionMsg?.id),
+          );
+          if (generalFeedback.length > 0) {
+            feedbackMsgs = generalFeedback;
+          }
+        }
 
-        // Reaction from this student
-        const reactionMsg = thread.messages.find(
+        // Find all student reaction messages from this student
+        const reactionMsgs = thread.messages.filter(
           (m) =>
-            m.type === MessageType.REACTION && m.authorId === student.id,
+            m.author.role === 'STUDENT' &&
+            m.authorId === answerMsg.authorId &&
+            m.id !== answerMsg.id &&
+            (m.type === MessageType.REACTION ||
+              (feedbackMsgs.length > 0 && feedbackMsgs.some((f) => m.parentMessageId === f.id)) ||
+              (m.parentMessageId && m.parentMessageId !== rootQuestionMsg?.id)),
         );
 
         // Opinion from this student
         const opinion = thread.opinions.find(
-          (o) => o.authorId === student.id,
+          (o) => o.authorId === answerMsg.authorId,
         );
-
-        const studentAnswer = studentAnswerMsg ? this.cleanText(studentAnswerMsg.body) : '';
-        const lecturerFeedback = feedbackMsg ? this.cleanText(feedbackMsg.body) : '';
-        const studentReaction = reactionMsg ? this.cleanText(reactionMsg.body) : '';
         const studentOpinion = opinion ? this.cleanText(opinion.opinionText) : '';
 
-        // Calculate auto-labels
+        // If multiple feedbacks or reactions exist, generate a row for each combination / reaction
+        const feedbacksToIterate = feedbackMsgs.length > 0 ? feedbackMsgs : [null];
+        const reactionsToIterate = reactionMsgs.length > 0 ? reactionMsgs : [null];
+
+        for (const fb of feedbacksToIterate) {
+          if (fb) processedMessageIds.add(fb.id);
+
+          for (const rx of reactionsToIterate) {
+            if (rx) processedMessageIds.add(rx.id);
+
+            const lecturerFeedback = fb ? this.cleanText(fb.body) : '';
+            const studentReaction = rx ? this.cleanText(rx.body) : '';
+
+            // Calculate auto-labels
+            const auto = this.computeAutoLabels(
+              questionText,
+              studentAnswer,
+              lecturerFeedback,
+              studentReaction,
+              studentOpinion,
+            );
+
+            const qaRelevance =
+              threadLabel?.qaRelevance != null ? threadLabel.qaRelevance : auto.qaRelevance;
+            const afRelevance =
+              threadLabel?.afRelevance != null ? threadLabel.afRelevance : auto.afRelevance;
+            const feedbackNovelty =
+              threadLabel?.feedbackNovelty != null
+                ? threadLabel.feedbackNovelty
+                : auto.feedbackNovelty;
+            const studentSentiment =
+              (threadLabel?.studentSentiment && threadLabel.studentSentiment.trim() !== '')
+                ? threadLabel.studentSentiment
+                : (opinion?.sentiment || auto.studentSentiment);
+            const studentEmotion =
+              (threadLabel?.studentEmotion && threadLabel.studentEmotion.trim() !== '')
+                ? threadLabel.studentEmotion
+                : (opinion?.emotion || auto.studentEmotion);
+            const lecturerEmotion =
+              (threadLabel?.lecturerEmotion && threadLabel.lecturerEmotion.trim() !== '')
+                ? threadLabel.lecturerEmotion
+                : auto.lecturerEmotion;
+            const interactionQuality =
+              threadLabel?.interactionQuality != null
+                ? threadLabel.interactionQuality
+                : auto.interactionQuality;
+
+            const logTimestamp = this.formatLogDate(rx?.createdAt || fb?.createdAt || answerMsg.createdAt);
+            const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Interaksi ${studentName} - ${lecturerName}${rx ? ` (Reaction: ${studentReaction.substring(0, 30)}...)` : ''}`;
+
+            rows.push({
+              Log: logDetail,
+              Course_ID: courseCode,
+              Lecturer_ID: lecturerName,
+              Student_ID: studentName,
+              Lecturer_Question: questionText,
+              Student_Answer: studentAnswer,
+              Lecturer_Feedback: lecturerFeedback,
+              Student_Reaction: studentReaction,
+              Lecturer_Opinion: lecturerOpinion,
+              Student_Opinion: studentOpinion,
+              'Q-A_Relevance': qaRelevance,
+              'A-F_Relevance': afRelevance,
+              Feedback_Novalty: feedbackNovelty,
+              Student_Sentiment: studentSentiment,
+              Student_Emotion: studentEmotion,
+              Lecturer_Emotion: lecturerEmotion,
+              Interaction_Quality: interactionQuality,
+            });
+          }
+        }
+      }
+
+      // 2. Process all other reply pairs & discussion messages in the forum (nested discussions)
+      for (const msg of thread.messages) {
+        if (processedMessageIds.has(msg.id) || msg.id === rootQuestionMsg?.id) continue;
+
+        const parentMsg = msg.parentMessageId ? messageMap.get(msg.parentMessageId) : null;
+        processedMessageIds.add(msg.id);
+
+        let lecturerName = defaultLecturerName;
+        let studentName = 'Mahasiswa';
+        let questionText = rootQuestionText || (parentMsg ? this.cleanText(parentMsg.body) : '');
+        let answerText = '';
+        let feedbackText = '';
+        let reactionText = '';
+
+        if (msg.author.role === 'STUDENT') {
+          studentName = msg.author.name;
+          if (parentMsg && parentMsg.author.role !== 'STUDENT') {
+            lecturerName = parentMsg.author.name;
+            if (msg.type === MessageType.REACTION) {
+              reactionText = this.cleanText(msg.body);
+              if (isLecturerFeedbackMsg(parentMsg)) {
+                feedbackText = this.cleanText(parentMsg.body);
+              }
+            } else {
+              answerText = this.cleanText(msg.body);
+            }
+          } else {
+            answerText = this.cleanText(msg.body);
+          }
+        } else {
+          // Message author is Lecturer or Admin
+          lecturerName = msg.author.name;
+          // Any message from lecturer besides QUESTION is treated as Lecturer_Feedback
+          if (isLecturerFeedbackMsg(msg)) {
+            feedbackText = this.cleanText(msg.body);
+          }
+          if (parentMsg && parentMsg.author.role === 'STUDENT') {
+            studentName = parentMsg.author.name;
+            answerText = this.cleanText(parentMsg.body);
+          }
+        }
+
+        const opinion = thread.opinions.find(
+          (o) => o.authorId === (msg.author.role === 'STUDENT' ? msg.authorId : parentMsg?.authorId),
+        );
+        const studentOpinion = opinion ? this.cleanText(opinion.opinionText) : '';
+
         const auto = this.computeAutoLabels(
           questionText,
-          studentAnswer,
-          lecturerFeedback,
-          studentReaction,
+          answerText,
+          feedbackText,
+          reactionText,
           studentOpinion,
         );
 
-        // Fallback priority: Saved DB Label > User Opinion Stored Selection > Auto-Calculated Value
-        const qaRelevance =
-          threadLabel?.qaRelevance != null ? threadLabel.qaRelevance : auto.qaRelevance;
-        const afRelevance =
-          threadLabel?.afRelevance != null ? threadLabel.afRelevance : auto.afRelevance;
-        const feedbackNovelty =
-          threadLabel?.feedbackNovelty != null
-            ? threadLabel.feedbackNovelty
-            : auto.feedbackNovelty;
-        const studentSentiment =
-          (threadLabel?.studentSentiment && threadLabel.studentSentiment.trim() !== '')
-            ? threadLabel.studentSentiment
-            : (opinion?.sentiment || auto.studentSentiment);
-        const studentEmotion =
-          (threadLabel?.studentEmotion && threadLabel.studentEmotion.trim() !== '')
-            ? threadLabel.studentEmotion
-            : (opinion?.emotion || auto.studentEmotion);
-        const lecturerEmotion =
-          (threadLabel?.lecturerEmotion && threadLabel.lecturerEmotion.trim() !== '')
-            ? threadLabel.lecturerEmotion
-            : auto.lecturerEmotion;
-        const interactionQuality =
-          threadLabel?.interactionQuality != null
-            ? threadLabel.interactionQuality
-            : auto.interactionQuality;
+        const logTimestamp = this.formatLogDate(msg.createdAt);
+        const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Diskusi: ${msg.author.name} (${msg.author.role})${parentMsg ? ` membalas ${parentMsg.author.name} (${parentMsg.author.role})` : ''}`;
 
         rows.push({
-          Course_ID: thread.course.code || thread.course.id,
-          Lecturer_ID: thread.course.lecturerId,
-          Student_ID: student.id,
+          Log: logDetail,
+          Course_ID: courseCode,
+          Lecturer_ID: lecturerName,
+          Student_ID: studentName,
           Lecturer_Question: questionText,
-          Student_Answer: studentAnswer,
-          Lecturer_Feedback: lecturerFeedback,
-          Student_Reaction: studentReaction,
+          Student_Answer: answerText,
+          Lecturer_Feedback: feedbackText,
+          Student_Reaction: reactionText,
+          Lecturer_Opinion: lecturerOpinion,
           Student_Opinion: studentOpinion,
-          'Q-A_Relevance': qaRelevance,
-          'A-F_Relevance': afRelevance,
-          Feedback_Novalty: feedbackNovelty,
-          Student_Sentiment: studentSentiment,
-          Student_Emotion: studentEmotion,
-          Lecturer_Emotion: lecturerEmotion,
-          Interaction_Quality: interactionQuality,
+          'Q-A_Relevance': auto.qaRelevance,
+          'A-F_Relevance': auto.afRelevance,
+          Feedback_Novalty: auto.feedbackNovelty,
+          Student_Sentiment: opinion?.sentiment || auto.studentSentiment,
+          Student_Emotion: opinion?.emotion || auto.studentEmotion,
+          Lecturer_Emotion: auto.lecturerEmotion,
+          Interaction_Quality: auto.interactionQuality,
         });
+      }
+
+      // 3. Fallback: If thread has NO answers/messages yet, output topic info
+      if (studentAnswers.length === 0 && rows.filter((r) => r.Log.includes(thread.title)).length === 0) {
+        const targetStudents = (thread.course.enrollments || []).map(
+          (e) => e.student || { id: e.studentId, name: 'Mahasiswa Kelas' },
+        );
+
+        const uniqueStudents = Array.from(
+          new Map(
+            targetStudents.filter((s) => s && s.id).map((s) => [s.id, s]),
+          ).values(),
+        );
+
+        const studentsToRender =
+          uniqueStudents.length > 0
+            ? uniqueStudents
+            : [{ id: 'mhs-1', name: 'Mahasiswa Kelas' }];
+
+        for (const student of studentsToRender) {
+          const auto = this.computeAutoLabels(
+            rootQuestionText,
+            '',
+            '',
+            '',
+            '',
+          );
+
+          const logTimestamp = this.formatLogDate(thread.openedAt);
+          const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Topik Forum Dosen (${defaultLecturerName}) - Belum ada balasan`;
+
+          rows.push({
+            Log: logDetail,
+            Course_ID: courseCode,
+            Lecturer_ID: defaultLecturerName,
+            Student_ID: student.name,
+            Lecturer_Question: rootQuestionText,
+            Student_Answer: '',
+            Lecturer_Feedback: '',
+            Student_Reaction: '',
+            Lecturer_Opinion: lecturerOpinion,
+            Student_Opinion: '',
+            'Q-A_Relevance': auto.qaRelevance,
+            'A-F_Relevance': auto.afRelevance,
+            Feedback_Novalty: auto.feedbackNovelty,
+            Student_Sentiment: auto.studentSentiment,
+            Student_Emotion: auto.studentEmotion,
+            Lecturer_Emotion: auto.lecturerEmotion,
+            Interaction_Quality: auto.interactionQuality,
+          });
+        }
       }
     }
 
@@ -391,13 +594,14 @@ export class DatasetsService {
   }
 
   /**
-   * Convert dataset rows to CSV buffer
+   * Convert dataset rows to CSV buffer with new Log column, user names, and Lecturer_Opinion
    */
   async exportCsv(query: QueryDatasetExportDto): Promise<string> {
     const rows = await this.buildDatasetRows(query);
     if (rows.length === 0) {
       return (
         [
+          'Log',
           'Course_ID',
           'Lecturer_ID',
           'Student_ID',
@@ -405,6 +609,7 @@ export class DatasetsService {
           'Student_Answer',
           'Lecturer_Feedback',
           'Student_Reaction',
+          'Lecturer_Opinion',
           'Student_Opinion',
           'Q-A_Relevance',
           'A-F_Relevance',
@@ -420,7 +625,9 @@ export class DatasetsService {
   }
 
   /**
-   * Get summary statistics of collected data for research monitoring
+   * Get summary statistics of collected data for research monitoring.
+   * Aggregates from all dataset rows combining manual annotations (Opinion / DatasetLabel)
+   * and auto-inferred NLP heuristics.
    */
   async getSummary() {
     const [
@@ -428,29 +635,21 @@ export class DatasetsService {
       totalThreads,
       totalMessages,
       totalOpinions,
-      totalLabels,
-      labels,
+      savedLabelsCount,
     ] = await Promise.all([
       this.prisma.course.count(),
       this.prisma.thread.count(),
       this.prisma.threadMessage.count(),
       this.prisma.opinion.count(),
       this.prisma.datasetLabel.count(),
-      this.prisma.datasetLabel.findMany({
-        select: {
-          studentEmotion: true,
-          studentSentiment: true,
-          qaRelevance: true,
-          afRelevance: true,
-          feedbackNovelty: true,
-          interactionQuality: true,
-        },
-      }),
     ]);
 
     const answersCount = await this.prisma.threadMessage.count({
       where: { type: MessageType.ANSWER },
     });
+
+    // Build all dataset rows (combines manual annotations and auto NLP inference)
+    const datasetRows = await this.buildDatasetRows({});
 
     const emotionCounts: Record<string, number> = {
       Happiness: 0,
@@ -473,30 +672,46 @@ export class DatasetsService {
     let scoredNoveltyCount = 0;
     let scoredQualityCount = 0;
 
-    for (const l of labels) {
-      if (l.studentEmotion && emotionCounts[l.studentEmotion] !== undefined) {
-        emotionCounts[l.studentEmotion]++;
+    for (const row of datasetRows) {
+      // 1. Emotion distribution (takes Student_Emotion or Lecturer_Emotion from manual or auto-infer)
+      const emotion = row.Student_Emotion || row.Lecturer_Emotion;
+      if (emotion && emotionCounts[emotion] !== undefined) {
+        emotionCounts[emotion]++;
       }
-      if (l.studentSentiment && sentimentCounts[l.studentSentiment] !== undefined) {
-        sentimentCounts[l.studentSentiment]++;
+
+      // 2. Sentiment distribution (takes Student_Sentiment from manual or auto-infer)
+      const sentiment = row.Student_Sentiment;
+      if (sentiment && sentimentCounts[sentiment] !== undefined) {
+        sentimentCounts[sentiment]++;
       }
-      if (l.qaRelevance !== null && l.qaRelevance !== undefined) {
-        sumQaRelevance += l.qaRelevance;
+
+      // 3. Relevance & Quality scores
+      const qa = typeof row['Q-A_Relevance'] === 'number' ? row['Q-A_Relevance'] : parseFloat(row['Q-A_Relevance']);
+      if (!isNaN(qa) && qa > 0) {
+        sumQaRelevance += qa;
         scoredQaCount++;
       }
-      if (l.afRelevance !== null && l.afRelevance !== undefined) {
-        sumAfRelevance += l.afRelevance;
+
+      const af = typeof row['A-F_Relevance'] === 'number' ? row['A-F_Relevance'] : parseFloat(row['A-F_Relevance']);
+      if (!isNaN(af) && af > 0) {
+        sumAfRelevance += af;
         scoredAfCount++;
       }
-      if (l.feedbackNovelty !== null && l.feedbackNovelty !== undefined) {
-        sumFeedbackNovelty += l.feedbackNovelty;
+
+      const novelty = typeof row.Feedback_Novalty === 'number' ? row.Feedback_Novalty : parseFloat(row.Feedback_Novalty);
+      if (!isNaN(novelty) && novelty > 0) {
+        sumFeedbackNovelty += novelty;
         scoredNoveltyCount++;
       }
-      if (l.interactionQuality !== null && l.interactionQuality !== undefined) {
-        sumInteractionQuality += l.interactionQuality;
+
+      const quality = typeof row.Interaction_Quality === 'number' ? row.Interaction_Quality : parseFloat(row.Interaction_Quality);
+      if (!isNaN(quality) && quality > 0) {
+        sumInteractionQuality += quality;
         scoredQualityCount++;
       }
     }
+
+    const totalSamples = datasetRows.length;
 
     return {
       totalCourses,
@@ -504,10 +719,10 @@ export class DatasetsService {
       totalMessages,
       totalAnswers: answersCount,
       totalOpinions,
-      totalLabels,
+      totalLabels: Math.max(savedLabelsCount, totalSamples),
       readinessScore:
         totalThreads > 0
-          ? Math.min(100, Math.round((answersCount / (totalThreads * 4)) * 100))
+          ? Math.min(100, Math.round((answersCount / (totalThreads * 2)) * 100))
           : 0,
       emotionCounts,
       sentimentCounts,

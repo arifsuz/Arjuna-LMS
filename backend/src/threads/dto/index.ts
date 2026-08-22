@@ -14,6 +14,13 @@ export class CreateThreadDto {
   @IsString()
   @IsNotEmpty()
   body: string; // The initial question body
+
+  @IsOptional()
+  durationMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  expiresAt?: string;
 }
 
 export class CreateMessageDto {

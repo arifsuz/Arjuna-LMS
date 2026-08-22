@@ -332,6 +332,7 @@ model Thread {
   status        ThreadStatus @default(OPEN)
   openedAt      DateTime     @default(now()) @map("opened_at")
   closedAt      DateTime?    @map("closed_at")
+  expiresAt     DateTime?    @map("expires_at")
 
   // Relations
   course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)

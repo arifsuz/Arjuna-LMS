@@ -18,6 +18,14 @@ export class CoursesService {
         lecturer: {
           select: { id: true, name: true, email: true },
         },
+        enrollments: {
+          include: {
+            student: {
+              select: { id: true, name: true, email: true, createdAt: true },
+            },
+          },
+          orderBy: { enrolledAt: 'desc' },
+        },
         _count: {
           select: {
             enrollments: true,

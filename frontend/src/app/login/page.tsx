@@ -1,20 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogIn, AlertCircle, Sparkles, GraduationCap } from "lucide-react";
+import { LogIn, AlertCircle, Sparkles, GraduationCap, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const router = useRouter();
+
+  // Redirect to dashboard if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +41,20 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // If already authenticated or loading auth state, show loading indicator
+  if (authLoading || user) {
+    return (
+      <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-12 overflow-hidden bg-gradient-to-b from-[#030d1d] to-[#061a3b]">
+        <div className="flex flex-col items-center gap-4 text-center z-10">
+          <Loader2 className="h-10 w-10 animate-spin text-[#C9A05C]" />
+          <p className="text-sm font-bold text-slate-200">
+            Memeriksa sesi login... Mengarahkan ke Dashboard
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-12 overflow-hidden">

@@ -196,7 +196,15 @@ export const threads = {
     return request(`/courses/${courseId}/threads${query}`);
   },
 
-  create: (courseId: string, data: { title: string; body: string }) =>
+  create: (
+    courseId: string,
+    data: {
+      title: string;
+      body: string;
+      durationMinutes?: number;
+      expiresAt?: string;
+    }
+  ) =>
     request(`/courses/${courseId}/threads`, { method: "POST", json: data }),
 
   getById: (threadId: string) => request(`/threads/${threadId}`),
@@ -216,7 +224,7 @@ export const threads = {
 export const opinions = {
   create: (
     threadId: string,
-    data: { opinionText: string; sentiment?: string; emotion?: string }
+    data: { opinionText?: string; sentiment?: string; emotion?: string }
   ) =>
     request(`/threads/${threadId}/opinions`, { method: "POST", json: data }),
 
@@ -369,6 +377,8 @@ export interface Thread {
   initiatorRole: string;
   status: "OPEN" | "CLOSED";
   openedAt: string;
+  closedAt?: string | null;
+  expiresAt?: string | null;
   initiator: { id: string; name: string; role: string };
   _count: { messages: number; opinions: number };
   compliance?: {
@@ -385,6 +395,12 @@ export interface Message {
   createdAt: string;
   author: { id: string; name: string; role: string };
   parentMessageId: string | null;
+  parent?: {
+    id: string;
+    body: string;
+    type: string;
+    author: { id: string; name: string; role: string };
+  } | null;
 }
 
 export { ApiError };

@@ -30,6 +30,13 @@ export class ThreadsService {
     // Verify user has access to this course
     await this.verifyAccess(courseId, userId, userRole);
 
+    let expiresAt: Date | null = null;
+    if (dto.expiresAt) {
+      expiresAt = new Date(dto.expiresAt);
+    } else if (dto.durationMinutes && Number(dto.durationMinutes) > 0) {
+      expiresAt = new Date(Date.now() + Number(dto.durationMinutes) * 60 * 1000);
+    }
+
     const thread = await this.prisma.thread.create({
       data: {
         courseId,
@@ -37,6 +44,7 @@ export class ThreadsService {
         initiatorId: userId,
         title: dto.title,
         status: ThreadStatus.OPEN,
+        expiresAt: expiresAt || null,
         messages: {
           create: {
             authorId: userId,
@@ -108,8 +116,38 @@ export class ThreadsService {
       this.prisma.thread.count({ where }),
     ]);
 
+    // Check & auto-expire open threads whose session time has passed
+    const now = new Date();
+    const processedThreads = await Promise.all(
+      threads.map(async (thread) => {
+        if (
+          thread.status === ThreadStatus.OPEN &&
+          thread.expiresAt &&
+          now > new Date(thread.expiresAt)
+        ) {
+          try {
+            await this.prisma.thread.update({
+              where: { id: thread.id },
+              data: {
+                status: ThreadStatus.CLOSED,
+                closedAt: thread.expiresAt,
+              },
+            });
+            return {
+              ...thread,
+              status: ThreadStatus.CLOSED,
+              closedAt: thread.expiresAt,
+            };
+          } catch {
+            return thread;
+          }
+        }
+        return thread;
+      }),
+    );
+
     // If user is LECTURER, include compliance info per thread
-    let threadsWithCompliance = threads;
+    let threadsWithCompliance = processedThreads;
     if (userRole === Role.LECTURER || userRole === Role.ADMIN) {
       const enrollments = await this.prisma.enrollment.findMany({
         where: { courseId },
@@ -118,7 +156,7 @@ export class ThreadsService {
       const enrolledStudentIds = enrollments.map((e) => e.studentId);
 
       threadsWithCompliance = await Promise.all(
-        threads.map(async (thread) => {
+        processedThreads.map(async (thread) => {
           // Only check compliance for lecturer-initiated threads
           if (thread.initiatorRole !== Role.LECTURER) {
             return { ...thread, compliance: null };
@@ -162,7 +200,7 @@ export class ThreadsService {
    * Get full thread with all messages.
    */
   async findThreadById(threadId: string, userId: string, userRole: Role) {
-    const thread = await this.prisma.thread.findUnique({
+    let thread = await this.prisma.thread.findUnique({
       where: { id: threadId },
       include: {
         course: {
@@ -175,6 +213,11 @@ export class ThreadsService {
           include: {
             author: {
               select: { id: true, name: true, role: true },
+            },
+            parent: {
+              include: {
+                author: { select: { id: true, name: true, role: true } },
+              },
             },
           },
           orderBy: { createdAt: 'asc' },
@@ -195,6 +238,53 @@ export class ThreadsService {
 
     // Verify access
     await this.verifyAccess(thread.courseId, userId, userRole);
+
+    // Auto-expire thread if expiration time has passed
+    const now = new Date();
+    if (
+      thread.status === ThreadStatus.OPEN &&
+      thread.expiresAt &&
+      now > new Date(thread.expiresAt)
+    ) {
+      thread = await this.prisma.thread.update({
+        where: { id: threadId },
+        data: {
+          status: ThreadStatus.CLOSED,
+          closedAt: thread.expiresAt,
+        },
+        include: {
+          course: {
+            select: { id: true, code: true, name: true, lecturerId: true },
+          },
+          initiator: {
+            select: { id: true, name: true, role: true },
+          },
+          messages: {
+            include: {
+              author: {
+                select: { id: true, name: true, role: true },
+              },
+              parent: {
+                include: {
+                  author: { select: { id: true, name: true, role: true } },
+                },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+          opinions: {
+            include: {
+              author: {
+                select: { id: true, name: true, role: true },
+              },
+            },
+          },
+        },
+      });
+
+      this.eventsGateway.emitToThread(threadId, 'thread:closed', { threadId });
+      this.eventsGateway.emitToCourse(thread.courseId, 'thread:closed', { threadId });
+    }
 
     // Get compliance data for lecturer-initiated threads
     let compliance = null;
@@ -247,27 +337,79 @@ export class ThreadsService {
       throw new NotFoundException('Thread tidak ditemukan');
     }
 
-    if (thread.status === ThreadStatus.CLOSED) {
-      throw new BadRequestException('Thread sudah ditutup');
+    // Check expiration or closed status
+    const now = new Date();
+    const isExpired =
+      thread.expiresAt && now > new Date(thread.expiresAt);
+
+    if (thread.status === ThreadStatus.CLOSED || isExpired) {
+      if (thread.status !== ThreadStatus.CLOSED) {
+        await this.prisma.thread.update({
+          where: { id: threadId },
+          data: {
+            status: ThreadStatus.CLOSED,
+            closedAt: thread.expiresAt || new Date(),
+          },
+        });
+      }
+      throw new BadRequestException(
+        'Waktu sesi diskusi telah berakhir. Forum ini telah ditutup dan tidak dapat menerima balasan.',
+      );
     }
 
     // Verify access
     await this.verifyAccess(thread.courseId, userId, userRole);
 
-    // Validate message type based on role and thread context
-    this.validateMessageType(dto.type, userRole, thread);
+    // If parentMessageId is provided, validate role reply constraints
+    let parentMessage: any = null;
+    if (dto.parentMessageId) {
+      parentMessage = await this.prisma.threadMessage.findUnique({
+        where: { id: dto.parentMessageId },
+        include: {
+          author: { select: { id: true, name: true, role: true } },
+        },
+      });
 
-    // Check duplicate answer from same student
-    if (dto.type === MessageType.ANSWER && userRole === Role.STUDENT) {
+      if (!parentMessage || parentMessage.threadId !== threadId) {
+        throw new BadRequestException('Pesan yang dibalas tidak ditemukan di thread ini.');
+      }
+
+      // Role-based reply constraints:
+      // - STUDENT can ONLY reply to LECTURER (or ADMIN)
+      // - LECTURER can ONLY reply to STUDENT
+      // - ADMIN can reply to ANY
+      if (userRole === Role.STUDENT && parentMessage.author.role === Role.STUDENT) {
+        throw new BadRequestException(
+          'Mahasiswa hanya dapat membalas pesan dari Dosen.',
+        );
+      }
+
+      if (userRole === Role.LECTURER && parentMessage.author.role === Role.LECTURER) {
+        throw new BadRequestException(
+          'Dosen hanya dapat membalas pesan dari Mahasiswa.',
+        );
+      }
+    }
+
+    // Validate message type based on role and thread context
+    this.validateMessageType(dto.type, userRole, thread, parentMessage);
+
+    // Check duplicate answer from same student (only for top-level answer to lecturer thread)
+    if (
+      dto.type === MessageType.ANSWER &&
+      userRole === Role.STUDENT &&
+      !dto.parentMessageId
+    ) {
       const existingAnswer = await this.prisma.threadMessage.findFirst({
         where: {
           threadId,
           authorId: userId,
           type: MessageType.ANSWER,
+          parentMessageId: null,
         },
       });
       if (existingAnswer) {
-        throw new BadRequestException('Anda sudah menjawab pertanyaan ini');
+        throw new BadRequestException('Anda sudah menjawab pertanyaan utama ini');
       }
     }
 
@@ -282,6 +424,11 @@ export class ThreadsService {
       include: {
         author: {
           select: { id: true, name: true, role: true },
+        },
+        parent: {
+          include: {
+            author: { select: { id: true, name: true, role: true } },
+          },
         },
       },
     });
@@ -314,6 +461,20 @@ export class ThreadsService {
       thread.course.lecturerId !== userId
     ) {
       throw new ForbiddenException('Hanya dosen kelas ini atau admin yang bisa menutup thread');
+    }
+
+    // Validate mandatory opinion: lecturer must fill opinion before manually closing thread
+    const lecturerOpinion = await this.prisma.opinion.findFirst({
+      where: {
+        threadId,
+        authorRole: Role.LECTURER,
+      },
+    });
+
+    if (!lecturerOpinion || !lecturerOpinion.opinionText || lecturerOpinion.opinionText.trim().length === 0) {
+      throw new BadRequestException(
+        'Dosen wajib mengisi form Refleksi & Opini terlebih dahulu sebelum dapat menutup forum diskusi ini secara manual.',
+      );
     }
 
     const updated = await this.prisma.thread.update({
@@ -365,6 +526,7 @@ export class ThreadsService {
     type: MessageType,
     role: Role,
     thread: any,
+    parentMessage?: any,
   ) {
     // QUESTION: only for new threads (handled in createThread)
     if (type === MessageType.QUESTION) {
@@ -378,6 +540,18 @@ export class ThreadsService {
       return;
     }
 
+    // If replying directly to a parent message, check role compatibility
+    if (parentMessage) {
+      if (role === Role.STUDENT && type === MessageType.FEEDBACK) {
+        throw new BadRequestException('Mahasiswa tidak dapat mengirim tipe pesan feedback.');
+      }
+      if (role === Role.LECTURER && type === MessageType.REACTION) {
+        throw new BadRequestException('Dosen tidak dapat mengirim tipe pesan reaksi mahasiswa.');
+      }
+      return;
+    }
+
+    // Top-level message validation:
     // ANSWER:
     // - Student can answer lecturer's question
     // - Lecturer can answer student's question
