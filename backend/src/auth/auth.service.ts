@@ -52,7 +52,7 @@ export class AuthService {
   async refreshTokens(refreshToken: string): Promise<TokenPair> {
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET') || 'arjuna-refresh-secret-change-in-production',
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
 
       const user = await this.prisma.user.findUnique({
@@ -104,11 +104,11 @@ export class AuthService {
   private async generateTokens(payload: JwtPayload): Promise<TokenPair> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(payload as any, {
-        secret: this.config.get<string>('JWT_ACCESS_SECRET') || 'arjuna-access-secret-change-in-production',
+        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: (this.config.get<string>('JWT_ACCESS_EXPIRY') || '15m') as any,
       }),
       this.jwt.signAsync(payload as any, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET') || 'arjuna-refresh-secret-change-in-production',
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: (this.config.get<string>('JWT_REFRESH_EXPIRY') || '7d') as any,
       }),
     ]);

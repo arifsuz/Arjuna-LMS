@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 
 # Install build & runtime dependencies for Prisma and native modules
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 WORKDIR /app
 

@@ -9,9 +9,12 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    const connectionString =
-      process.env.DATABASE_URL ||
-      'postgresql://arjuna:arjuna_dev_2026@127.0.0.1:5433/arjuna_lms?schema=public';
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        'DATABASE_URL environment variable is required. Set it in .env (local) or Dokploy Environment (production).',
+      );
+    }
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     super({ adapter });

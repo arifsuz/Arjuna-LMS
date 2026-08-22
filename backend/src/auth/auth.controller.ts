@@ -82,11 +82,6 @@ export class AuthController {
     if (!req) return undefined;
 
     const host = (req.get('host') || req.hostname || '').split(':')[0];
-    const origin = req.get('origin') || '';
-
-    if (host.includes('sandiwarno.tech') || origin.includes('sandiwarno.tech')) {
-      return '.sandiwarno.tech';
-    }
 
     // Dynamic extraction for custom production domains (e.g., sub.domain.com -> .domain.com)
     if (
