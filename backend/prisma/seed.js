@@ -13,19 +13,25 @@ const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
 const argon2 = require('argon2');
 
-const connectionString =
-  process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('[Seed] Memulai inisialisasi akun Super Admin...');
-
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPasswordPlain = process.env.ADMIN_PASSWORD;
-  const adminName = process.env.ADMIN_NAME;
+  const adminName = process.env.ADMIN_NAME || 'Super Admin';
+
+  if (!adminEmail || !adminPasswordPlain) {
+    console.log(
+      '[Seed] ℹ️ Variabel ADMIN_EMAIL atau ADMIN_PASSWORD belum disetel di .env / Dokploy Environment. Melewati inisialisasi akun admin.',
+    );
+    return;
+  }
+
+  console.log(`[Seed] Menginisialisasi akun Super Admin untuk email: ${adminEmail}...`);
 
   const passwordHash = await argon2.hash(adminPasswordPlain, {
     type: argon2.argon2id,
@@ -42,10 +48,7 @@ async function main() {
     },
   });
 
-  console.log(`[Seed] ✅ Berhasil memastikan akun Admin:`);
-  console.log(`       Email    : ${admin.email}`);
-  console.log(`       Role     : ${admin.role}`);
-  console.log(`       Password : ${adminPasswordPlain}`);
+  console.log(`[Seed] ✅ Akun Super Admin (${admin.email}) siap digunakan.`);
 }
 
 main()
