@@ -18,9 +18,10 @@ export interface DatasetRow {
   'Q-A_Relevance': string | number;
   'A-F_Relevance': string | number;
   Feedback_Novalty: string | number;
+  Lecturer_Sentiment: string;
   Student_Sentiment: string;
-  Student_Emotion: string;
   Lecturer_Emotion: string;
+  Student_Emotion: string;
   Interaction_Quality: string | number;
 }
 
@@ -28,6 +29,7 @@ export interface ComputedAutoLabels {
   qaRelevance: number;
   afRelevance: number;
   feedbackNovelty: number;
+  lecturerSentiment: string;
   studentSentiment: string;
   studentEmotion: string;
   lecturerEmotion: string;
@@ -57,13 +59,15 @@ export class DatasetsService {
     answer: string,
     feedback: string,
     reaction: string,
-    opinion: string,
+    studentOpinion: string = '',
+    lecturerOpinion: string = '',
   ): ComputedAutoLabels {
     const qClean = (question || '').toLowerCase();
     const aClean = (answer || '').toLowerCase();
     const fClean = (feedback || '').toLowerCase();
     const rClean = (reaction || '').toLowerCase();
-    const oClean = (opinion || '').toLowerCase();
+    const oCleanStudent = (studentOpinion || '').toLowerCase();
+    const oCleanLecturer = (lecturerOpinion || '').toLowerCase();
 
     // If student hasn't answered yet
     if (!aClean.trim()) {
@@ -71,6 +75,7 @@ export class DatasetsService {
         qaRelevance: 0.0,
         afRelevance: 0.0,
         feedbackNovelty: 0.0,
+        lecturerSentiment: 'Positif',
         studentSentiment: 'Positif',
         studentEmotion: 'Happiness',
         lecturerEmotion: 'Happiness',
@@ -141,7 +146,7 @@ export class DatasetsService {
     noveltyScore = Math.round(noveltyScore * 100) / 100;
 
     // 4. Student Sentiment ("Positif" | "Negatif")
-    const studentFullText = `${aClean} ${rClean} ${oClean}`;
+    const studentFullText = `${aClean} ${rClean} ${oCleanStudent}`;
     const posKeywords = [
       'paham', 'mengerti', 'jelas', 'menarik', 'senang', 'bagus', 'terima kasih',
       'makasih', 'membantu', 'bermanfaat', 'setuju', 'mantap', 'sukses', 'mudah',
@@ -164,7 +169,31 @@ export class DatasetsService {
 
     const studentSentiment = negCount > posCount ? 'Negatif' : 'Positif';
 
-    // 5. Student Emotion (Happiness, Anger, Fear, Disgust, Sadness)
+    // 5. Lecturer Sentiment ("Positif" | "Negatif")
+    const lecturerFullText = `${fClean} ${oCleanLecturer}`.trim();
+    const lecPosKeywords = [
+      'bagus', 'tepat', 'benar', 'hebat', 'sangat baik', 'luar biasa', 'apresiasi',
+      'mantap', 'memuaskan', 'sempurna', 'terima kasih', 'senang', 'lanjutkan',
+      'pertahankan', 'baik sekali', 'aktif', 'memahami', 'positif', 'solutif', 'jelas',
+    ];
+    const lecNegKeywords = [
+      'kurang', 'salah', 'keliru', 'belum tepat', 'perbaiki', 'tidak sesuai',
+      'lemah', 'sayang sekali', 'kecewa', 'sulit', 'kurang aktif', 'pasif',
+      'belum paham', 'bingung', 'negatif', 'perlu belajar',
+    ];
+
+    let lecPosCount = 0;
+    let lecNegCount = 0;
+    lecPosKeywords.forEach((w) => {
+      if (lecturerFullText.includes(w)) lecPosCount++;
+    });
+    lecNegKeywords.forEach((w) => {
+      if (lecturerFullText.includes(w)) lecNegCount++;
+    });
+
+    const lecturerSentiment = lecNegCount > lecPosCount ? 'Negatif' : 'Positif';
+
+    // 6. Student Emotion (Happiness, Anger, Fear, Disgust, Sadness)
     const emotionKeywords = {
       Happiness: ['senang', 'gembira', 'puas', 'terima kasih', 'makasih', 'hebat', 'bagus', 'mantap', 'alhamdulillah', 'jelas', 'paham', 'mengerti', 'menarik', 'semangat', 'suka', 'berhasil', 'solutif', 'terbantu', 'mudah', 'yakin', 'pasti'],
       Anger: ['marah', 'kesal', 'jengkel', 'keberatan', 'protes', 'tidak adil', 'parah', 'buruk', 'emosi'],
@@ -192,7 +221,7 @@ export class DatasetsService {
       studentEmotion = 'Sadness';
     }
 
-    // 6. Lecturer Emotion (Happiness, Anger, Fear, Disgust, Sadness)
+    // 7. Lecturer Emotion (Happiness, Anger, Fear, Disgust, Sadness)
     let lecturerEmotion = 'Happiness';
     let maxLecScore = -1;
 
@@ -207,7 +236,7 @@ export class DatasetsService {
     for (const [emo, kws] of Object.entries(lecEmotionKeywords)) {
       let count = 0;
       kws.forEach((w) => {
-        if (fClean.includes(w)) count++;
+        if (fClean.includes(w) || oCleanLecturer.includes(w)) count++;
       });
       if (count > maxLecScore && count > 0) {
         maxLecScore = count;
@@ -215,10 +244,10 @@ export class DatasetsService {
       }
     }
 
-    // 7. Interaction Quality (0.00 - 1.00)
+    // 8. Interaction Quality (0.00 - 1.00)
     const sentimentScore = studentSentiment === 'Positif' ? 0.95 : 0.65;
     const completenessBonus =
-      (aClean ? 0.05 : 0) + (fClean ? 0.03 : 0) + (rClean ? 0.02 : 0) + (oClean ? 0.02 : 0);
+      (aClean ? 0.05 : 0) + (fClean ? 0.03 : 0) + (rClean ? 0.02 : 0) + (oCleanStudent ? 0.02 : 0);
 
     let interactionQuality =
       qaScore * 0.30 +
@@ -232,6 +261,7 @@ export class DatasetsService {
       qaRelevance: qaScore,
       afRelevance: afScore,
       feedbackNovelty: noveltyScore,
+      lecturerSentiment,
       studentSentiment,
       studentEmotion,
       lecturerEmotion,
@@ -240,7 +270,7 @@ export class DatasetsService {
   }
 
   /**
-   * Aggregate interaction threads into structured dataset rows.
+   * Aggregate interaction threads into structured 18-column dataset rows.
    * Pulls all messages and nested replies, pairing questions and answers cleanly.
    * Lecturer_ID and Student_ID use names, and Log details the interaction.
    */
@@ -284,6 +314,7 @@ export class DatasetsService {
         opinions: {
           include: {
             author: { select: { id: true, name: true, email: true, role: true } },
+            targetStudent: { select: { id: true, name: true, email: true, role: true } },
           },
         },
         labels: {
@@ -300,14 +331,6 @@ export class DatasetsService {
       const courseCode = thread.course.code || thread.course.name || thread.course.id;
       const defaultLecturerName = thread.course.lecturer?.name || 'Dosen Pengampu';
       const threadLabel = thread.labels[0] || null;
-
-      // Extract lecturer opinion from thread opinions
-      const lecturerOpinionObj = thread.opinions.find(
-        (o) => o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId,
-      );
-      const lecturerOpinion = lecturerOpinionObj
-        ? this.cleanText(lecturerOpinionObj.opinionText)
-        : '';
 
       const messageMap = new Map<string, any>();
       thread.messages.forEach((m) => messageMap.set(m.id, m));
@@ -329,213 +352,305 @@ export class DatasetsService {
         m.type !== MessageType.QUESTION &&
         m.id !== rootQuestionMsg?.id;
 
-      // 1. Process all student answers & their direct replies
-      const studentAnswers = thread.messages.filter(
-        (m) => m.type === MessageType.ANSWER && m.author.role === 'STUDENT',
-      );
-
-      for (const answerMsg of studentAnswers) {
-        processedMessageIds.add(answerMsg.id);
-
-        // Find what question was answered (parent message or root thread question)
-        const parentMsg = answerMsg.parentMessageId
-          ? messageMap.get(answerMsg.parentMessageId)
-          : rootQuestionMsg;
-
-        const questionText = parentMsg ? this.cleanText(parentMsg.body) : rootQuestionText;
-        const studentAnswer = this.cleanText(answerMsg.body);
-
-        const lecturerName =
-          (parentMsg && parentMsg.author?.role === 'LECTURER'
-            ? parentMsg.author.name
-            : defaultLecturerName);
-        const studentName = answerMsg.author.name || 'Mahasiswa';
-
-        // Find all lecturer feedback messages (any message sent by lecturer other than question)
-        // 1. First priority: messages directly replying to this student answer
-        let feedbackMsgs = thread.messages.filter(
-          (m) => isLecturerFeedbackMsg(m) && m.parentMessageId === answerMsg.id,
-        );
-
-        // 2. Second priority: any other lecturer messages in this thread besides question
-        if (feedbackMsgs.length === 0) {
-          const generalFeedback = thread.messages.filter(
-            (m) =>
-              isLecturerFeedbackMsg(m) &&
-              (!m.parentMessageId || m.parentMessageId === rootQuestionMsg?.id),
-          );
-          if (generalFeedback.length > 0) {
-            feedbackMsgs = generalFeedback;
-          }
-        }
-
-        // Find all student reaction messages from this student
-        const reactionMsgs = thread.messages.filter(
-          (m) =>
-            m.author.role === 'STUDENT' &&
-            m.authorId === answerMsg.authorId &&
-            m.id !== answerMsg.id &&
-            (m.type === MessageType.REACTION ||
-              (feedbackMsgs.length > 0 && feedbackMsgs.some((f) => m.parentMessageId === f.id)) ||
-              (m.parentMessageId && m.parentMessageId !== rootQuestionMsg?.id)),
-        );
-
-        // Opinion from this student
-        const opinion = thread.opinions.find(
-          (o) => o.authorId === answerMsg.authorId,
-        );
-        const studentOpinion = opinion ? this.cleanText(opinion.opinionText) : '';
-
-        // If multiple feedbacks or reactions exist, generate a row for each combination / reaction
-        const feedbacksToIterate = feedbackMsgs.length > 0 ? feedbackMsgs : [null];
-        const reactionsToIterate = reactionMsgs.length > 0 ? reactionMsgs : [null];
-
-        for (const fb of feedbacksToIterate) {
-          if (fb) processedMessageIds.add(fb.id);
-
-          for (const rx of reactionsToIterate) {
-            if (rx) processedMessageIds.add(rx.id);
-
-            const lecturerFeedback = fb ? this.cleanText(fb.body) : '';
-            const studentReaction = rx ? this.cleanText(rx.body) : '';
-
-            // Calculate auto-labels
-            const auto = this.computeAutoLabels(
-              questionText,
-              studentAnswer,
-              lecturerFeedback,
-              studentReaction,
-              studentOpinion,
-            );
-
-            const qaRelevance =
-              threadLabel?.qaRelevance != null ? threadLabel.qaRelevance : auto.qaRelevance;
-            const afRelevance =
-              threadLabel?.afRelevance != null ? threadLabel.afRelevance : auto.afRelevance;
-            const feedbackNovelty =
-              threadLabel?.feedbackNovelty != null
-                ? threadLabel.feedbackNovelty
-                : auto.feedbackNovelty;
-            const studentSentiment =
-              (threadLabel?.studentSentiment && threadLabel.studentSentiment.trim() !== '')
-                ? threadLabel.studentSentiment
-                : (opinion?.sentiment || auto.studentSentiment);
-            const studentEmotion =
-              (threadLabel?.studentEmotion && threadLabel.studentEmotion.trim() !== '')
-                ? threadLabel.studentEmotion
-                : (opinion?.emotion || auto.studentEmotion);
-            const lecturerEmotion =
-              (threadLabel?.lecturerEmotion && threadLabel.lecturerEmotion.trim() !== '')
-                ? threadLabel.lecturerEmotion
-                : auto.lecturerEmotion;
-            const interactionQuality =
-              threadLabel?.interactionQuality != null
-                ? threadLabel.interactionQuality
-                : auto.interactionQuality;
-
-            const logTimestamp = this.formatLogDate(rx?.createdAt || fb?.createdAt || answerMsg.createdAt);
-            const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Interaksi ${studentName} - ${lecturerName}${rx ? ` (Reaction: ${studentReaction.substring(0, 30)}...)` : ''}`;
-
-            rows.push({
-              Log: logDetail,
-              Course_ID: courseCode,
-              Lecturer_ID: lecturerName,
-              Student_ID: studentName,
-              Lecturer_Question: questionText,
-              Student_Answer: studentAnswer,
-              Lecturer_Feedback: lecturerFeedback,
-              Student_Reaction: studentReaction,
-              Lecturer_Opinion: lecturerOpinion,
-              Student_Opinion: studentOpinion,
-              'Q-A_Relevance': qaRelevance,
-              'A-F_Relevance': afRelevance,
-              Feedback_Novalty: feedbackNovelty,
-              Student_Sentiment: studentSentiment,
-              Student_Emotion: studentEmotion,
-              Lecturer_Emotion: lecturerEmotion,
-              Interaction_Quality: interactionQuality,
-            });
-          }
-        }
-      }
-
-      // 2. Process all other reply pairs & discussion messages in the forum (nested discussions)
-      for (const msg of thread.messages) {
-        if (processedMessageIds.has(msg.id) || msg.id === rootQuestionMsg?.id) continue;
-
-        const parentMsg = msg.parentMessageId ? messageMap.get(msg.parentMessageId) : null;
-        processedMessageIds.add(msg.id);
-
-        let lecturerName = defaultLecturerName;
-        let studentName = 'Mahasiswa';
-        let questionText = rootQuestionText || (parentMsg ? this.cleanText(parentMsg.body) : '');
-        let answerText = '';
-        let feedbackText = '';
-        let reactionText = '';
-
-        if (msg.author.role === 'STUDENT') {
-          studentName = msg.author.name;
-          if (parentMsg && parentMsg.author.role !== 'STUDENT') {
-            lecturerName = parentMsg.author.name;
-            if (msg.type === MessageType.REACTION) {
-              reactionText = this.cleanText(msg.body);
-              if (isLecturerFeedbackMsg(parentMsg)) {
-                feedbackText = this.cleanText(parentMsg.body);
-              }
-            } else {
-              answerText = this.cleanText(msg.body);
-            }
-          } else {
-            answerText = this.cleanText(msg.body);
-          }
-        } else {
-          // Message author is Lecturer or Admin
-          lecturerName = msg.author.name;
-          // Any message from lecturer besides QUESTION is treated as Lecturer_Feedback
-          if (isLecturerFeedbackMsg(msg)) {
-            feedbackText = this.cleanText(msg.body);
-          }
-          if (parentMsg && parentMsg.author.role === 'STUDENT') {
-            studentName = parentMsg.author.name;
-            answerText = this.cleanText(parentMsg.body);
-          }
-        }
-
-        const opinion = thread.opinions.find(
-          (o) => o.authorId === (msg.author.role === 'STUDENT' ? msg.authorId : parentMsg?.authorId),
-        );
-        const studentOpinion = opinion ? this.cleanText(opinion.opinionText) : '';
-
+      // Helper to construct and push a dataset row
+      const pushRow = (
+        qText: string,
+        aText: string,
+        fbText: string,
+        rxText: string,
+        sName: string,
+        lName: string,
+        lOpinion: string,
+        sOpinion: string,
+        lOpinionObj: any,
+        sOpinionObj: any,
+        timestamp: Date | string | null | undefined,
+      ) => {
         const auto = this.computeAutoLabels(
-          questionText,
-          answerText,
-          feedbackText,
-          reactionText,
-          studentOpinion,
+          qText,
+          aText,
+          fbText,
+          rxText,
+          sOpinion,
+          lOpinion,
         );
 
-        const logTimestamp = this.formatLogDate(msg.createdAt);
-        const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Diskusi: ${msg.author.name} (${msg.author.role})${parentMsg ? ` membalas ${parentMsg.author.name} (${parentMsg.author.role})` : ''}`;
+        const qaRelevance =
+          threadLabel?.qaRelevance != null ? threadLabel.qaRelevance : auto.qaRelevance;
+        const afRelevance =
+          threadLabel?.afRelevance != null ? threadLabel.afRelevance : auto.afRelevance;
+        const feedbackNovelty =
+          threadLabel?.feedbackNovelty != null
+            ? threadLabel.feedbackNovelty
+            : auto.feedbackNovelty;
+
+        const lecturerSentiment =
+          (lOpinionObj?.sentiment && lOpinionObj.sentiment.trim() !== '')
+            ? lOpinionObj.sentiment
+            : (threadLabel?.lecturerSentiment && threadLabel.lecturerSentiment.trim() !== '' && threadLabel.source === LabelSource.MANUAL)
+              ? threadLabel.lecturerSentiment
+              : auto.lecturerSentiment;
+
+        const studentSentiment =
+          (sOpinionObj?.sentiment && sOpinionObj.sentiment.trim() !== '')
+            ? sOpinionObj.sentiment
+            : (threadLabel?.studentSentiment && threadLabel.studentSentiment.trim() !== '' && threadLabel.source === LabelSource.MANUAL)
+              ? threadLabel.studentSentiment
+              : auto.studentSentiment;
+
+        const lecturerEmotion =
+          (lOpinionObj?.emotion && lOpinionObj.emotion.trim() !== '')
+            ? lOpinionObj.emotion
+            : (threadLabel?.lecturerEmotion && threadLabel.lecturerEmotion.trim() !== '' && threadLabel.source === LabelSource.MANUAL)
+              ? threadLabel.lecturerEmotion
+              : auto.lecturerEmotion;
+
+        const studentEmotion =
+          (sOpinionObj?.emotion && sOpinionObj.emotion.trim() !== '')
+            ? sOpinionObj.emotion
+            : (threadLabel?.studentEmotion && threadLabel.studentEmotion.trim() !== '' && threadLabel.source === LabelSource.MANUAL)
+              ? threadLabel.studentEmotion
+              : auto.studentEmotion;
+
+        const interactionQuality =
+          threadLabel?.interactionQuality != null
+            ? threadLabel.interactionQuality
+            : auto.interactionQuality;
+
+        const logTimestamp = this.formatLogDate(timestamp);
+        const logDetail = `[${logTimestamp}] Thread: "${thread.title}" | Interaksi ${sName} - ${lName}${rxText ? ` (Reaction: ${rxText.substring(0, 30)}...)` : ''}`;
 
         rows.push({
           Log: logDetail,
           Course_ID: courseCode,
-          Lecturer_ID: lecturerName,
-          Student_ID: studentName,
-          Lecturer_Question: questionText,
-          Student_Answer: answerText,
-          Lecturer_Feedback: feedbackText,
-          Student_Reaction: reactionText,
-          Lecturer_Opinion: lecturerOpinion,
-          Student_Opinion: studentOpinion,
-          'Q-A_Relevance': auto.qaRelevance,
-          'A-F_Relevance': auto.afRelevance,
-          Feedback_Novalty: auto.feedbackNovelty,
-          Student_Sentiment: opinion?.sentiment || auto.studentSentiment,
-          Student_Emotion: opinion?.emotion || auto.studentEmotion,
-          Lecturer_Emotion: auto.lecturerEmotion,
-          Interaction_Quality: auto.interactionQuality,
+          Lecturer_ID: lName,
+          Student_ID: sName,
+          Lecturer_Question: qText,
+          Student_Answer: aText,
+          Lecturer_Feedback: fbText,
+          Student_Reaction: rxText,
+          Lecturer_Opinion: lOpinion,
+          Student_Opinion: sOpinion,
+          'Q-A_Relevance': qaRelevance,
+          'A-F_Relevance': afRelevance,
+          Feedback_Novalty: feedbackNovelty,
+          Lecturer_Sentiment: lecturerSentiment,
+          Student_Sentiment: studentSentiment,
+          Lecturer_Emotion: lecturerEmotion,
+          Student_Emotion: studentEmotion,
+          Interaction_Quality: interactionQuality,
         });
+      };
+
+      // Recursive dialogue turn chain processor for a student branch
+      const processDialogueTurn = (
+        studentMsg: any,
+        qText: string,
+        sName: string,
+        sId: string,
+        lName: string,
+        lOpinion: string,
+        sOpinion: string,
+        lOpinionObj: any,
+        sOpinionObj: any,
+        isInitialAnswer: boolean = false,
+      ) => {
+        processedMessageIds.add(studentMsg.id);
+        const currentStudentText = this.cleanText(studentMsg.body);
+
+        // Find direct feedback(s) replying to this student message
+        const directFeedbacks = thread.messages.filter(
+          (m: any) => isLecturerFeedbackMsg(m) && m.parentMessageId === studentMsg.id,
+        );
+
+        if (directFeedbacks.length === 0) {
+          if (isInitialAnswer) {
+            // If this was the initial student answer and no direct feedback exists, check unparented feedback
+            const unassignedFeedbacks = thread.messages.filter(
+              (m: any) =>
+                isLecturerFeedbackMsg(m) &&
+                !processedMessageIds.has(m.id) &&
+                (!m.parentMessageId || m.parentMessageId === rootQuestionMsg?.id),
+            );
+
+            if (unassignedFeedbacks.length > 0) {
+              for (const fb of unassignedFeedbacks) {
+                processedMessageIds.add(fb.id);
+                const fbText = this.cleanText(fb.body);
+
+                // Find student reaction to this feedback
+                const directReactions = thread.messages.filter(
+                  (m: any) =>
+                    m.author.role === 'STUDENT' &&
+                    m.authorId === sId &&
+                    !processedMessageIds.has(m.id) &&
+                    m.parentMessageId === fb.id,
+                );
+
+                if (directReactions.length > 0) {
+                  for (const rx of directReactions) {
+                    processedMessageIds.add(rx.id);
+                    const rxText = this.cleanText(rx.body);
+                    pushRow(qText, currentStudentText, fbText, rxText, sName, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, rx.createdAt || fb.createdAt);
+
+                    // Advance chain
+                    processDialogueTurn(rx, qText, sName, sId, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, false);
+                  }
+                } else {
+                  pushRow(qText, currentStudentText, fbText, '', sName, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, fb.createdAt);
+                }
+              }
+            } else {
+              // Student initial message with no feedback yet
+              pushRow(qText, currentStudentText, '', '', sName, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, studentMsg.createdAt);
+            }
+          }
+        } else {
+          for (const fb of directFeedbacks) {
+            processedMessageIds.add(fb.id);
+            const fbText = this.cleanText(fb.body);
+
+            // Find direct student reaction(s) replying to this feedback
+            const directReactions = thread.messages.filter(
+              (m: any) =>
+                m.author.role === 'STUDENT' &&
+                m.authorId === sId &&
+                m.parentMessageId === fb.id,
+            );
+
+            if (directReactions.length > 0) {
+              for (const rx of directReactions) {
+                processedMessageIds.add(rx.id);
+                const rxText = this.cleanText(rx.body);
+                pushRow(qText, currentStudentText, fbText, rxText, sName, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, rx.createdAt || fb.createdAt);
+
+                // Advance chain to the next turn (Turn 2, Turn 3, ...)
+                processDialogueTurn(rx, qText, sName, sId, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, false);
+              }
+            } else {
+              // Feedback sent, but no reaction from student yet
+              pushRow(qText, currentStudentText, fbText, '', sName, lName, lOpinion, sOpinion, lOpinionObj, sOpinionObj, fb.createdAt);
+            }
+          }
+        }
+      };
+
+      // 1. Process all initial student answers (Level 2)
+      const studentAnswers = thread.messages.filter(
+        (m: any) =>
+          m.author.role === 'STUDENT' &&
+          (m.type === MessageType.ANSWER || !m.parentMessageId || m.parentMessageId === rootQuestionMsg?.id),
+      );
+
+      for (const answerMsg of studentAnswers) {
+        if (processedMessageIds.has(answerMsg.id)) continue;
+
+        const studentId = answerMsg.authorId;
+        const studentName = answerMsg.author.name || 'Mahasiswa';
+        const lecturerName = defaultLecturerName;
+
+        const lecturerOpinionObj =
+          thread.opinions.find(
+            (o: any) =>
+              (o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId) &&
+              o.targetStudentId === studentId,
+          ) ||
+          thread.opinions.find(
+            (o: any) =>
+              (o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId) &&
+              !o.targetStudentId,
+          );
+        const lecturerOpinion = lecturerOpinionObj
+          ? this.cleanText(lecturerOpinionObj.opinionText)
+          : '';
+
+        const studentOpinionObj = thread.opinions.find(
+          (o: any) => o.authorId === studentId && o.authorRole === 'STUDENT',
+        );
+        const studentOpinion = studentOpinionObj ? this.cleanText(studentOpinionObj.opinionText) : '';
+
+        processDialogueTurn(
+          answerMsg,
+          rootQuestionText,
+          studentName,
+          studentId,
+          lecturerName,
+          lecturerOpinion,
+          studentOpinion,
+          lecturerOpinionObj,
+          studentOpinionObj,
+          true,
+        );
+      }
+
+      // 2. Process any remaining unprocessed discussion messages
+      for (const msg of thread.messages) {
+        if (processedMessageIds.has(msg.id) || msg.id === rootQuestionMsg?.id) continue;
+        processedMessageIds.add(msg.id);
+
+        const parentMsg = msg.parentMessageId ? messageMap.get(msg.parentMessageId) : null;
+        let lName = defaultLecturerName;
+        let sName = 'Mahasiswa';
+        let sId = '';
+        let aText = '';
+        let fbText = '';
+        let rxText = '';
+
+        if (msg.author.role === 'STUDENT') {
+          sName = msg.author.name;
+          sId = msg.author.id;
+          if (parentMsg && parentMsg.author.role !== 'STUDENT') {
+            lName = parentMsg.author.name;
+            if (isLecturerFeedbackMsg(parentMsg)) {
+              fbText = this.cleanText(parentMsg.body);
+            }
+            rxText = this.cleanText(msg.body);
+          } else {
+            aText = this.cleanText(msg.body);
+          }
+        } else {
+          lName = msg.author.name;
+          if (isLecturerFeedbackMsg(msg)) {
+            fbText = this.cleanText(msg.body);
+          }
+          if (parentMsg && parentMsg.author.role === 'STUDENT') {
+            sName = parentMsg.author.name;
+            sId = parentMsg.author.id;
+            aText = this.cleanText(parentMsg.body);
+          }
+        }
+
+        const studentOpinionObj = thread.opinions.find(
+          (o: any) => o.authorId === (sId || msg.authorId),
+        );
+        const studentOpinion = studentOpinionObj ? this.cleanText(studentOpinionObj.opinionText) : '';
+
+        const lecturerOpinionObj =
+          thread.opinions.find(
+            (o: any) =>
+              (o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId) &&
+              o.targetStudentId === sId,
+          ) ||
+          thread.opinions.find(
+            (o: any) =>
+              (o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId) &&
+              !o.targetStudentId,
+          );
+        const lecturerOpinion = lecturerOpinionObj ? this.cleanText(lecturerOpinionObj.opinionText) : '';
+
+        pushRow(
+          rootQuestionText,
+          aText,
+          fbText,
+          rxText,
+          sName,
+          lName,
+          lecturerOpinion,
+          studentOpinion,
+          lecturerOpinionObj,
+          studentOpinionObj,
+          msg.createdAt,
+        );
       }
 
       // 3. Fallback: If thread has NO answers/messages yet, output topic info
@@ -556,12 +671,20 @@ export class DatasetsService {
             : [{ id: 'mhs-1', name: 'Mahasiswa Kelas' }];
 
         for (const student of studentsToRender) {
+          const lecturerOpinionObj = thread.opinions.find(
+            (o) =>
+              (o.authorRole === 'LECTURER' || o.authorId === thread.course.lecturerId) &&
+              (o.targetStudentId === student.id || !o.targetStudentId),
+          );
+          const lecturerOpinion = lecturerOpinionObj ? this.cleanText(lecturerOpinionObj.opinionText) : '';
+
           const auto = this.computeAutoLabels(
             rootQuestionText,
             '',
             '',
             '',
             '',
+            lecturerOpinion,
           );
 
           const logTimestamp = this.formatLogDate(thread.openedAt);
@@ -581,9 +704,10 @@ export class DatasetsService {
             'Q-A_Relevance': auto.qaRelevance,
             'A-F_Relevance': auto.afRelevance,
             Feedback_Novalty: auto.feedbackNovelty,
+            Lecturer_Sentiment: lecturerOpinionObj?.sentiment || auto.lecturerSentiment,
             Student_Sentiment: auto.studentSentiment,
+            Lecturer_Emotion: lecturerOpinionObj?.emotion || auto.lecturerEmotion,
             Student_Emotion: auto.studentEmotion,
-            Lecturer_Emotion: auto.lecturerEmotion,
             Interaction_Quality: auto.interactionQuality,
           });
         }
@@ -594,7 +718,7 @@ export class DatasetsService {
   }
 
   /**
-   * Convert dataset rows to CSV buffer with new Log column, user names, and Lecturer_Opinion
+   * Convert dataset rows to CSV buffer with 18 columns including Lecturer_Sentiment & Student_Sentiment
    */
   async exportCsv(query: QueryDatasetExportDto): Promise<string> {
     const rows = await this.buildDatasetRows(query);
@@ -614,9 +738,10 @@ export class DatasetsService {
           'Q-A_Relevance',
           'A-F_Relevance',
           'Feedback_Novalty',
+          'Lecturer_Sentiment',
           'Student_Sentiment',
-          'Student_Emotion',
           'Lecturer_Emotion',
+          'Student_Emotion',
           'Interaction_Quality',
         ].join(',') + '\n'
       );
@@ -781,6 +906,7 @@ export class DatasetsService {
           opinions: {
             include: {
               author: { select: { id: true, name: true, role: true } },
+              targetStudent: { select: { id: true, name: true, role: true } },
             },
           },
           labels: {
@@ -816,10 +942,14 @@ export class DatasetsService {
       const sampleAnswer = answers.length > 0 ? this.cleanText(answers[0].body) : '';
       const sampleFeedback = feedbacks.length > 0 ? this.cleanText(feedbacks[0].body) : '';
       const sampleReaction = reactions.length > 0 ? this.cleanText(reactions[0].body) : '';
-      const sampleOpinion =
-        thread.opinions.length > 0
-          ? this.cleanText(thread.opinions[0].opinionText)
-          : '';
+      const studentOpinionObj = thread.opinions.find((o) => o.authorRole === 'STUDENT');
+      const lecturerOpinionObj = thread.opinions.find((o) => o.authorRole === 'LECTURER');
+      const sampleOpinion = studentOpinionObj
+        ? this.cleanText(studentOpinionObj.opinionText)
+        : '';
+      const sampleLecturerOpinion = lecturerOpinionObj
+        ? this.cleanText(lecturerOpinionObj.opinionText)
+        : '';
 
       const autoLabels = this.computeAutoLabels(
         questionText,
@@ -827,10 +957,10 @@ export class DatasetsService {
         sampleFeedback,
         sampleReaction,
         sampleOpinion,
+        sampleLecturerOpinion,
       );
 
       const activeLabel = thread.labels[0] || null;
-      const latestOpinion = thread.opinions[0];
 
       return {
         id: thread.id,
@@ -854,15 +984,22 @@ export class DatasetsService {
           qaRelevance: activeLabel?.qaRelevance ?? autoLabels.qaRelevance,
           afRelevance: activeLabel?.afRelevance ?? autoLabels.afRelevance,
           feedbackNovelty: activeLabel?.feedbackNovelty ?? autoLabels.feedbackNovelty,
+          lecturerSentiment:
+            activeLabel?.lecturerSentiment ||
+            lecturerOpinionObj?.sentiment ||
+            autoLabels.lecturerSentiment,
           studentSentiment:
             activeLabel?.studentSentiment ||
-            latestOpinion?.sentiment ||
+            studentOpinionObj?.sentiment ||
             autoLabels.studentSentiment,
           studentEmotion:
             activeLabel?.studentEmotion ||
-            latestOpinion?.emotion ||
+            studentOpinionObj?.emotion ||
             autoLabels.studentEmotion,
-          lecturerEmotion: activeLabel?.lecturerEmotion ?? autoLabels.lecturerEmotion,
+          lecturerEmotion:
+            activeLabel?.lecturerEmotion ||
+            lecturerOpinionObj?.emotion ||
+            autoLabels.lecturerEmotion,
           interactionQuality: activeLabel?.interactionQuality ?? autoLabels.interactionQuality,
           source: activeLabel ? activeLabel.source : 'MODEL',
         },
@@ -915,19 +1052,23 @@ export class DatasetsService {
       const reactionMsg = thread.messages.find(
         (m) => m.type === MessageType.REACTION,
       );
-      const opinion = thread.opinions[0];
+      const studentOpinionObj = thread.opinions.find((o) => o.authorRole === 'STUDENT');
+      const lecturerOpinionObj = thread.opinions.find((o) => o.authorRole === 'LECTURER');
 
       const auto = this.computeAutoLabels(
         questionMsg ? this.cleanText(questionMsg.body) : '',
         answerMsg ? this.cleanText(answerMsg.body) : '',
         feedbackMsg ? this.cleanText(feedbackMsg.body) : '',
         reactionMsg ? this.cleanText(reactionMsg.body) : '',
-        opinion ? this.cleanText(opinion.opinionText) : '',
+        studentOpinionObj ? this.cleanText(studentOpinionObj.opinionText) : '',
+        lecturerOpinionObj ? this.cleanText(lecturerOpinionObj.opinionText) : '',
       );
 
       const existing = thread.labels[0];
-      const effSentiment = existing?.studentSentiment || opinion?.sentiment || auto.studentSentiment;
-      const effEmotion = existing?.studentEmotion || opinion?.emotion || auto.studentEmotion;
+      const effLecturerSentiment = existing?.lecturerSentiment || lecturerOpinionObj?.sentiment || auto.lecturerSentiment;
+      const effStudentSentiment = existing?.studentSentiment || studentOpinionObj?.sentiment || auto.studentSentiment;
+      const effStudentEmotion = existing?.studentEmotion || studentOpinionObj?.emotion || auto.studentEmotion;
+      const effLecturerEmotion = existing?.lecturerEmotion || lecturerOpinionObj?.emotion || auto.lecturerEmotion;
 
       if (existing) {
         await this.prisma.datasetLabel.update({
@@ -936,9 +1077,10 @@ export class DatasetsService {
             qaRelevance: auto.qaRelevance,
             afRelevance: auto.afRelevance,
             feedbackNovelty: auto.feedbackNovelty,
-            studentSentiment: effSentiment,
-            studentEmotion: effEmotion,
-            lecturerEmotion: existing.lecturerEmotion || auto.lecturerEmotion,
+            lecturerSentiment: effLecturerSentiment,
+            studentSentiment: effStudentSentiment,
+            studentEmotion: effStudentEmotion,
+            lecturerEmotion: effLecturerEmotion,
             interactionQuality: auto.interactionQuality,
             labeledBy: adminId || existing.labeledBy,
             labeledAt: new Date(),
@@ -952,9 +1094,10 @@ export class DatasetsService {
             qaRelevance: auto.qaRelevance,
             afRelevance: auto.afRelevance,
             feedbackNovelty: auto.feedbackNovelty,
-            studentSentiment: effSentiment,
-            studentEmotion: effEmotion,
-            lecturerEmotion: auto.lecturerEmotion,
+            lecturerSentiment: effLecturerSentiment,
+            studentSentiment: effStudentSentiment,
+            studentEmotion: effStudentEmotion,
+            lecturerEmotion: effLecturerEmotion,
             interactionQuality: auto.interactionQuality,
             labeledBy: adminId || null,
             labeledAt: new Date(),

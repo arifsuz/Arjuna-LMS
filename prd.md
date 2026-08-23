@@ -161,21 +161,30 @@ Karena kolom `Q-A_Relevance`, `Student_Sentiment`, dst adalah **output**, saya s
 
 ---
 
-## 10. Skema Ekspor Dataset (mapping ke Image 2)
+## 10. Skema Ekspor Dataset ARJUNA-Net (18 Label / Kolom Terstandarisasi)
 
-| Kolom Dataset | Sumber di LMS |
-|---|---|
-| Course_ID | `Course.id` |
-| Lecturer_ID | `Course.lecturer_id` |
-| Student_ID | `Enrollment.student_id` per baris jawaban |
-| Lecturer_Question | `ThreadMessage.type=QUESTION` |
-| Student_Answer | `ThreadMessage.type=ANSWER` |
-| Lecturer_Feedback | `ThreadMessage.type=FEEDBACK` |
-| Student_Reaction | `ThreadMessage.type=REACTION` |
-| Student_Opinion | `Opinion.author_role=STUDENT` |
-| Q-A_Relevance, A-F_Relevance, Feedback_Novalty, Student_Sentiment, Student_Emotion, Lecturer_Emotion, Interaction_Quality | `DatasetLabel` (diisi manual atau via API dari pipeline model Anda) |
+| No | Kolom Dataset | Sumber di LMS |
+|---|---|---|
+| 1 | `Log` | Timestamp format `[YYYY-MM-DD HH:mm:ss]`, Judul Thread, Metadata Partisipan |
+| 2 | `Course_ID` | `Course.code` / `Course.name` |
+| 3 | `Lecturer_ID` | `Course.lecturer.name` |
+| 4 | `Student_ID` | `User.name (Role: STUDENT)` per baris interaksi |
+| 5 | `Lecturer_Question` | `ThreadMessage.type=QUESTION` |
+| 6 | `Student_Answer` | `ThreadMessage.type=ANSWER` (Level 2 / Turn N) |
+| 7 | `Lecturer_Feedback` | `ThreadMessage.type=FEEDBACK` / `REPLY` Dosen |
+| 8 | `Student_Reaction` | `ThreadMessage.type=REACTION` / `REPLY` Mahasiswa |
+| 9 | `Lecturer_Opinion` | `Opinion.targetStudentId` (Penilaian dosen per mahasiswa) |
+| 10 | `Student_Opinion` | `Opinion.authorRole=STUDENT` (Refleksi mandiri mahasiswa) |
+| 11 | `Q-A_Relevance` | `DatasetLabel.qa_relevance` / Heuristik Otomatis NLP |
+| 12 | `A-F_Relevance` | `DatasetLabel.af_relevance` / Heuristik Otomatis NLP |
+| 13 | `Feedback_Novalty` | `DatasetLabel.feedback_novelty` / Heuristik Otomatis NLP |
+| 14 | `Lecturer_Sentiment` | `Opinion.sentiment` / Heuristik Otomatis NLP |
+| 15 | `Student_Sentiment` | `Opinion.sentiment` / Heuristik Otomatis NLP |
+| 16 | `Lecturer_Emotion` | `Opinion.emotion` / Heuristik Otomatis NLP |
+| 17 | `Student_Emotion` | `Opinion.emotion` / Heuristik Otomatis NLP |
+| 18 | `Interaction_Quality` | `DatasetLabel.interaction_quality` / Fusi Relevansi $\alpha QA + \beta AF + \gamma FN$ |
 
-Endpoint: `GET /api/admin/dataset/export?format=csv&course_id=...` menghasilkan file dengan urutan kolom persis seperti Image 2.
+Endpoint: `GET /api/datasets/export?format=csv&courseId=...` menghasilkan file dengan 18 parameter kolom lengkap siap olah model AI.
 
 ---
 

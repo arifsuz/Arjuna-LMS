@@ -44,6 +44,7 @@ describe('AuthService Unit Test (Authentication & Security Layer)', () => {
 
     const mockConfig = {
       get: jest.fn().mockReturnValue('test-secret'),
+      getOrThrow: jest.fn().mockReturnValue('test-secret'),
     };
 
     const module: TestingModule = await Test.createTestingModule({

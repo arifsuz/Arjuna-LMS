@@ -69,7 +69,8 @@ model User {
   enrollments           Enrollment[]
   initiatedThreads      Thread[]               @relation("ThreadInitiator")
   messages              ThreadMessage[]
-  opinions              Opinion[]
+  opinions              Opinion[]              @relation("OpinionAuthor")
+  targetedOpinions      Opinion[]              @relation("TargetStudentOpinion")
   datasetLabels         DatasetLabel[]         @relation("LabeledByUser")
   auditLogs             AuditLog[]
   materialProgress      MaterialProgress[]
@@ -370,20 +371,23 @@ model ThreadMessage {
 // ─── Opinion ──────────────────────────────────────────────────────────
 
 model Opinion {
-  id          String   @id @default(cuid())
-  threadId    String   @map("thread_id")
-  authorId    String   @map("author_id")
-  authorRole  Role     @map("author_role")
-  opinionText String   @map("opinion_text")
-  sentiment   String?  @map("sentiment")
-  emotion     String?  @map("emotion")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  threadId        String   @map("thread_id")
+  authorId        String   @map("author_id")
+  authorRole      Role     @map("author_role")
+  targetStudentId String?  @map("target_student_id")
+  opinionText     String   @map("opinion_text")
+  sentiment       String?  @map("sentiment")
+  emotion         String?  @map("emotion")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   // Relations
-  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [id])
+  thread        Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author        User   @relation("OpinionAuthor", fields: [authorId], references: [id])
+  targetStudent User?  @relation("TargetStudentOpinion", fields: [targetStudentId], references: [id])
 
-  @@unique([threadId, authorId])
+  @@index([threadId, authorId])
+  @@index([threadId, targetStudentId])
   @@map("opinions")
 }
 

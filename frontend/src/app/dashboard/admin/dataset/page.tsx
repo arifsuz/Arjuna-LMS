@@ -86,6 +86,7 @@ export default function AdminDatasetPage() {
     qaRelevance: 0.85,
     afRelevance: 0.85,
     feedbackNovelty: 0.75,
+    lecturerSentiment: "Positif",
     studentSentiment: "Positif",
     studentEmotion: "Happiness",
     lecturerEmotion: "Happiness",
@@ -188,7 +189,7 @@ export default function AdminDatasetPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(downloadUrl);
-      showNotification("success", `Dataset .${format.toUpperCase()} 15 kolom berhasil diunduh.`);
+      showNotification("success", `Dataset .${format.toUpperCase()} 18 Label berhasil diunduh.`);
     } catch (err) {
       console.error("Download error:", err);
       window.open(datasetsApi.exportUrl(selectedCourse || undefined, format), "_blank");
@@ -204,6 +205,7 @@ export default function AdminDatasetPage() {
       qaRelevance: eff.qaRelevance ?? 0.85,
       afRelevance: eff.afRelevance ?? 0.85,
       feedbackNovelty: eff.feedbackNovelty ?? 0.75,
+      lecturerSentiment: eff.lecturerSentiment ?? "Positif",
       studentSentiment: eff.studentSentiment ?? "Positif",
       studentEmotion: eff.studentEmotion ?? "Happiness",
       lecturerEmotion: eff.lecturerEmotion ?? "Happiness",
@@ -222,6 +224,7 @@ export default function AdminDatasetPage() {
           qaRelevance: auto.qaRelevance ?? 0.85,
           afRelevance: auto.afRelevance ?? 0.85,
           feedbackNovelty: auto.feedbackNovelty ?? 0.75,
+          lecturerSentiment: auto.lecturerSentiment ?? "Positif",
           studentSentiment: auto.studentSentiment ?? "Positif",
           studentEmotion: auto.studentEmotion ?? "Happiness",
           lecturerEmotion: auto.lecturerEmotion ?? "Happiness",
@@ -242,6 +245,7 @@ export default function AdminDatasetPage() {
         qaRelevance: Number(annotationForm.qaRelevance),
         afRelevance: Number(annotationForm.afRelevance),
         feedbackNovelty: Number(annotationForm.feedbackNovelty),
+        lecturerSentiment: annotationForm.lecturerSentiment,
         studentSentiment: annotationForm.studentSentiment,
         studentEmotion: annotationForm.studentEmotion,
         lecturerEmotion: annotationForm.lecturerEmotion,
@@ -406,7 +410,7 @@ export default function AdminDatasetPage() {
               Pusat Dataset & Studio Label Interaksi
             </h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-[#ebd09e]/80 max-w-3xl leading-relaxed">
-              Mengekstrak data interaksi dosen–mahasiswa ke dalam 17 kolom terstandarisasi. Seluruh parameter label terisi dari input manual refleksi opini maupun otomatis via NLP heuristics.
+              Mengekstrak data interaksi dosen–mahasiswa ke dalam 18 Label terstandarisasi. Seluruh parameter label terisi dari input manual refleksi opini maupun otomatis via NLP heuristics.
             </p>
           </div>
 
@@ -434,7 +438,7 @@ export default function AdminDatasetPage() {
               className="glass-button-primary flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-extrabold shadow-lg"
             >
               <Download className="h-4 w-4" />
-              <span>{downloading === "csv" ? "Mengunduh..." : "Ekspor CSV 17 Kolom"}</span>
+              <span>{downloading === "csv" ? "Mengunduh..." : "Ekspor CSV 18 Label"}</span>
             </button>
           </div>
         </div>
@@ -624,7 +628,7 @@ export default function AdminDatasetPage() {
             }`}
           >
             <Download className="h-4 w-4" />
-            <span>Ekspor & Pratinjau Dataset (15 Kolom)</span>
+            <span>Ekspor & Pratinjau Dataset (18 Label)</span>
           </button>
 
           <button
@@ -666,7 +670,7 @@ export default function AdminDatasetPage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          TAB 1: EKSPOR & PRATINJAU DATASET (15 KOLOM)
+          TAB 1: EKSPOR & PRATINJAU DATASET (18 Label)
       ═══════════════════════════════════════════════════════════════════ */}
       {activeTab === "export" && (
         <div className="space-y-8 animate-in fade-in duration-300">
@@ -679,22 +683,22 @@ export default function AdminDatasetPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-[#0A3266] dark:text-[#FBF8F3]">
-                    Ekspor Dataset Penelitian (15 Kolom Otomatis)
+                    Ekspor Dataset Penelitian (18 Label Otomatis)
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-[#ebd09e]/80">
-                    File CSV / JSON bergaransi 100% lengkap dengan 7 label inferensi semantik & emosi yang siap diolah model AI.
+                    File CSV / JSON bergaransi 100% lengkap dengan 18 parameter Label yang siap diolah model AI.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* CSV 15 Kolom Export Card */}
+              {/* CSV 18 Label Export Card */}
               <div className="glass-card flex flex-col justify-between rounded-2xl p-6 border-l-4 border-l-[#C9A05C]">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span className="rounded-xl bg-[#C9A05C]/20 px-3 py-1 text-xs font-bold text-[#8c6828] dark:text-[#ebd09e] border border-[#C9A05C]/40">
-                      Format Utama: CSV (15 Kolom)
+                      Format Utama: CSV (18 Label)
                     </span>
                     <FileSpreadsheet className="h-5 w-5 text-[#C9A05C]" />
                   </div>
@@ -702,7 +706,7 @@ export default function AdminDatasetPage() {
                     Dataset Standar ARJUNA-Net (.CSV)
                   </h4>
                   <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-[#ebd09e]/85 font-medium">
-                    Tabel baris-per-jawaban 15 kolom terstandarisasi dengan data label lengkap yang siap dimuat oleh Python Pandas, PyTorch DataLoader, atau scikit-learn.
+                    Tabel baris-per-jawaban 18 Label terstandarisasi dengan data label lengkap yang siap dimuat oleh Python Pandas, PyTorch DataLoader, atau scikit-learn.
                   </p>
                 </div>
 
@@ -718,7 +722,7 @@ export default function AdminDatasetPage() {
                   ) : (
                     <>
                       <Download className="h-4 w-4" />
-                      <span>Unduh Dataset .CSV (15 Kolom)</span>
+                      <span>Unduh Dataset .CSV (18 Label)</span>
                     </>
                   )}
                 </button>
@@ -761,7 +765,7 @@ export default function AdminDatasetPage() {
             </div>
           </div>
 
-          {/* Live Dataset Preview (17 Columns Table including Log & Lecturer_Opinion) */}
+          {/* Live Dataset Preview (18 Columns Table including Log & Lecturer_Opinion) */}
           <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
@@ -770,10 +774,10 @@ export default function AdminDatasetPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-[#0A3266] dark:text-[#FBF8F3]">
-                    Pratinjau Data Mentah & Riwayat Interaksi Forum (17 Kolom)
+                    Pratinjau Data Mentah & Riwayat Interaksi Forum (18 Label)
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-[#ebd09e]/80">
-                    Menampilkan {previewRows.length} baris rekaman interaksi & balasan forum lengkap dengan kolom Log, Lecturer_Opinion, Student_Opinion, dan 7 label semantik/emosi otomatis.
+                    Menampilkan {previewRows.length} baris rekaman interaksi & balasan forum lengkap dengan kolom Log, Lecturer_Opinion, Student_Opinion, Lecturer_Sentiment, Student_Sentiment, dan 6 label semantik/emosi otomatis.
                   </p>
                 </div>
               </div>
@@ -814,13 +818,16 @@ export default function AdminDatasetPage() {
                         Novelty
                       </th>
                       <th className="py-3 px-3 whitespace-nowrap bg-[#C9A05C]/10 dark:bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e]">
-                        Sentiment
+                        Lec_Sentiment
                       </th>
                       <th className="py-3 px-3 whitespace-nowrap bg-[#C9A05C]/10 dark:bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e]">
-                        Std_Emotion
+                        Std_Sentiment
                       </th>
                       <th className="py-3 px-3 whitespace-nowrap bg-[#C9A05C]/10 dark:bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e]">
                         Lec_Emotion
+                      </th>
+                      <th className="py-3 px-3 whitespace-nowrap bg-[#C9A05C]/10 dark:bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e]">
+                        Std_Emotion
                       </th>
                       <th className="py-3 px-2 text-center whitespace-nowrap bg-[#C9A05C]/10 dark:bg-[#C9A05C]/20 text-[#8c6828] dark:text-[#ebd09e]">
                         Quality
@@ -911,6 +918,19 @@ export default function AdminDatasetPage() {
                         <td className="py-3 px-3 whitespace-nowrap text-xs">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-md font-semibold text-[11px] ${
+                              row.Lecturer_Sentiment === "Positif"
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                                : row.Lecturer_Sentiment === "Negatif"
+                                ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                                : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30"
+                            }`}
+                          >
+                            {row.Lecturer_Sentiment || "Positif"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-xs">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md font-semibold text-[11px] ${
                               row.Student_Sentiment === "Positif"
                                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                                 : row.Student_Sentiment === "Negatif"
@@ -918,14 +938,14 @@ export default function AdminDatasetPage() {
                                 : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30"
                             }`}
                           >
-                            {row.Student_Sentiment || "Netral"}
+                            {row.Student_Sentiment || "Positif"}
                           </span>
                         </td>
-                        <td className="py-3 px-3 whitespace-nowrap text-xs font-medium text-purple-600 dark:text-purple-300">
-                          {row.Student_Emotion || "Neutral"}
-                        </td>
                         <td className="py-3 px-3 whitespace-nowrap text-xs font-medium text-teal-600 dark:text-teal-300">
-                          {row.Lecturer_Emotion || "Supportive"}
+                          {row.Lecturer_Emotion || "Happiness"}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-xs font-medium text-purple-600 dark:text-purple-300">
+                          {row.Student_Emotion || "Happiness"}
                         </td>
                         <td className="py-3 px-2 text-center font-mono text-xs font-black text-[#C9A05C] bg-[#C9A05C]/10">
                           {row.Interaction_Quality !== "" ? row.Interaction_Quality : "0.00"}
@@ -943,7 +963,7 @@ export default function AdminDatasetPage() {
             <div className="flex items-center gap-3 mb-4">
               <Info className="h-5 w-5 text-[#C9A05C]" />
               <h3 className="text-base font-bold text-[#0A3266] dark:text-[#FBF8F3]">
-                Spesifikasi Pemetaan 17 Kolom Dataset ARJUNA-Net
+                Spesifikasi Pemetaan 18 Label Dataset ARJUNA-Net
               </h3>
             </div>
 
@@ -963,10 +983,10 @@ export default function AdminDatasetPage() {
                   <tr>
                     <td className="py-2 px-3 font-mono">1</td>
                     <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#FBF8F3]">Log</td>
-                    <td className="py-2 px-3 font-mono">String (ISO Date)</td>
-                    <td className="py-2 px-3">Audit Log Timestamp</td>
+                    <td className="py-2 px-3 font-mono">String (Formatted Timestamp)</td>
+                    <td className="py-2 px-3">Audit Log Timestamp & Title</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Waktu</span></td>
-                    <td className="py-2 px-3">Timestamp ISO interaksi thread/pesan forum</td>
+                    <td className="py-2 px-3">Timestamp interaksi thread & ringkasan partisipasi</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">2</td>
@@ -982,7 +1002,7 @@ export default function AdminDatasetPage() {
                     <td className="py-2 px-3 font-mono">String</td>
                     <td className="py-2 px-3">Course.lecturer.name</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis DB</span></td>
-                    <td className="py-2 px-3">Nama/ID dosen pengampu kelas</td>
+                    <td className="py-2 px-3">Nama dosen pengampu kelas</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">4</td>
@@ -990,7 +1010,7 @@ export default function AdminDatasetPage() {
                     <td className="py-2 px-3 font-mono">String</td>
                     <td className="py-2 px-3">User.name</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis DB</span></td>
-                    <td className="py-2 px-3">Nama/ID mahasiswa yang merespon</td>
+                    <td className="py-2 px-3">Nama mahasiswa yang berpartisipasi</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">5</td>
@@ -1006,7 +1026,7 @@ export default function AdminDatasetPage() {
                     <td className="py-2 px-3 font-mono">String (Clean Text)</td>
                     <td className="py-2 px-3">ThreadMessage (ANSWER)</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Forum</span></td>
-                    <td className="py-2 px-3">Teks jawaban mahasiswa</td>
+                    <td className="py-2 px-3">Teks jawaban mahasiswa (Level 2)</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">7</td>
@@ -1014,7 +1034,7 @@ export default function AdminDatasetPage() {
                     <td className="py-2 px-3 font-mono">String (Clean Text)</td>
                     <td className="py-2 px-3">ThreadMessage (FEEDBACK)</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Forum</span></td>
-                    <td className="py-2 px-3">Teks balasan feedback dosen</td>
+                    <td className="py-2 px-3">Teks balasan feedback dosen (Level 3)</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">8</td>
@@ -1022,23 +1042,23 @@ export default function AdminDatasetPage() {
                     <td className="py-2 px-3 font-mono">String (Clean Text)</td>
                     <td className="py-2 px-3">ThreadMessage (REACTION)</td>
                     <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Forum</span></td>
-                    <td className="py-2 px-3">Reaksi respon mahasiswa</td>
+                    <td className="py-2 px-3">Reaksi lanjutan mahasiswa (Level 4)</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">9</td>
                     <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#FBF8F3]">Lecturer_Opinion</td>
                     <td className="py-2 px-3 font-mono">String (Clean Text)</td>
-                    <td className="py-2 px-3">Opinion.opinionText (Dosen)</td>
-                    <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Refleksi</span></td>
-                    <td className="py-2 px-3">Opini refleksi dosen pengampu</td>
+                    <td className="py-2 px-3">Opinion.opinionText (Dosen per mahasiswa)</td>
+                    <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Evaluasi Pasca-Diskusi</span></td>
+                    <td className="py-2 px-3">Opini & catatan evaluasi dosen terhadap mahasiswa</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 font-mono">10</td>
                     <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#FBF8F3]">Student_Opinion</td>
                     <td className="py-2 px-3 font-mono">String (Clean Text)</td>
-                    <td className="py-2 px-3">Opinion.opinionText (Mhs)</td>
-                    <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Otomatis Refleksi</span></td>
-                    <td className="py-2 px-3">Opini refleksi mahasiswa</td>
+                    <td className="py-2 px-3">Opinion.opinionText (Mahasiswa)</td>
+                    <td className="py-2 px-3"><span className="text-emerald-600 font-semibold">Refleksi Pasca-Diskusi</span></td>
+                    <td className="py-2 px-3">Refleksi pemahaman mahasiswa untuk dosen</td>
                   </tr>
                   <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
                     <td className="py-2 px-3 font-mono font-bold">11</td>
@@ -1066,35 +1086,43 @@ export default function AdminDatasetPage() {
                   </tr>
                   <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
                     <td className="py-2 px-3 font-mono font-bold">14</td>
-                    <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Student_Sentiment</td>
-                    <td className="py-2 px-3 font-mono">String</td>
-                    <td className="py-2 px-3">DatasetLabel / NLP Engine</td>
+                    <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Lecturer_Sentiment</td>
+                    <td className="py-2 px-3 font-mono">String (Positif/Negatif)</td>
+                    <td className="py-2 px-3">DatasetLabel / Opinion Dosen / NLP</td>
                     <td className="py-2 px-3"><span className="text-[#C9A05C] font-extrabold">Terisi Otomatis / Manual</span></td>
-                    <td className="py-2 px-3">Sentimen mahasiswa (Positif/Netral/Negatif)</td>
+                    <td className="py-2 px-3">Polaritas sentimen dosen terhadap mahasiswa (SSWE + CNN)</td>
                   </tr>
                   <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
                     <td className="py-2 px-3 font-mono font-bold">15</td>
-                    <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Student_Emotion</td>
-                    <td className="py-2 px-3 font-mono">String</td>
-                    <td className="py-2 px-3">DatasetLabel / NLP Engine</td>
+                    <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Student_Sentiment</td>
+                    <td className="py-2 px-3 font-mono">String (Positif/Negatif)</td>
+                    <td className="py-2 px-3">DatasetLabel / Opinion Mhs / NLP</td>
                     <td className="py-2 px-3"><span className="text-[#C9A05C] font-extrabold">Terisi Otomatis / Manual</span></td>
-                    <td className="py-2 px-3">Klasifikasi emosi mahasiswa</td>
+                    <td className="py-2 px-3">Polaritas sentimen mahasiswa selama diskusi (SSWE + CNN)</td>
                   </tr>
                   <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
                     <td className="py-2 px-3 font-mono font-bold">16</td>
                     <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Lecturer_Emotion</td>
-                    <td className="py-2 px-3 font-mono">String</td>
-                    <td className="py-2 px-3">DatasetLabel / NLP Engine</td>
+                    <td className="py-2 px-3 font-mono">String (5 Kelas Ekman)</td>
+                    <td className="py-2 px-3">DatasetLabel / Opinion Dosen / NLP</td>
                     <td className="py-2 px-3"><span className="text-[#C9A05C] font-extrabold">Terisi Otomatis / Manual</span></td>
-                    <td className="py-2 px-3">Klasifikasi emosi feedback dosen</td>
+                    <td className="py-2 px-3">Klasifikasi emosi dosen (Happiness/Anger/Fear/Disgust/Sadness)</td>
                   </tr>
                   <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
                     <td className="py-2 px-3 font-mono font-bold">17</td>
+                    <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Student_Emotion</td>
+                    <td className="py-2 px-3 font-mono">String (5 Kelas Ekman)</td>
+                    <td className="py-2 px-3">DatasetLabel / Opinion Mhs / NLP</td>
+                    <td className="py-2 px-3"><span className="text-[#C9A05C] font-extrabold">Terisi Otomatis / Manual</span></td>
+                    <td className="py-2 px-3">Klasifikasi emosi mahasiswa (Happiness/Anger/Fear/Disgust/Sadness)</td>
+                  </tr>
+                  <tr className="bg-[#C9A05C]/10 dark:bg-[#C9A05C]/15">
+                    <td className="py-2 px-3 font-mono font-bold">18</td>
                     <td className="py-2 px-3 font-bold text-[#0A3266] dark:text-[#ebd09e]">Interaction_Quality</td>
                     <td className="py-2 px-3 font-mono">Float (0.0 - 1.0)</td>
                     <td className="py-2 px-3">DatasetLabel / NLP Engine</td>
                     <td className="py-2 px-3"><span className="text-[#C9A05C] font-extrabold">Terisi Otomatis / Manual</span></td>
-                    <td className="py-2 px-3">Skor agregat kualitas diskusi pembelajaran</td>
+                    <td className="py-2 px-3">Skor agregat kualitas diskusi pembelajaran ARJUNA-Net</td>
                   </tr>
                 </tbody>
               </table>
@@ -1413,7 +1441,7 @@ export default function AdminDatasetPage() {
               <div className="flex items-center justify-between gap-4">
                 <h4 className="text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] uppercase tracking-wider flex items-center gap-1.5">
                   <Sliders className="h-3.5 w-3.5 text-[#C9A05C]" />
-                  <span>Atur 7 Parameter Label Dataset</span>
+                  <span>Atur 8 Parameter Label Dataset (18 Label Total)</span>
                 </h4>
 
                 <button
@@ -1500,7 +1528,25 @@ export default function AdminDatasetPage() {
                   <p className="text-[10px] text-slate-400">Tingkat kebaruan materi penjelasan baru pada feedback</p>
                 </div>
 
-                {/* 4. Student Sentiment */}
+                {/* 4. Lecturer Sentiment */}
+                <div className="space-y-1.5 p-3.5 rounded-2xl bg-black/5 dark:bg-[#030d1d]/40 border border-black/10 dark:border-[#C9A05C]/20">
+                  <label className="text-xs font-bold text-[#0A3266] dark:text-[#FBF8F3]">
+                    Lecturer_Sentiment (SSWE)
+                  </label>
+                  <select
+                    value={annotationForm.lecturerSentiment}
+                    onChange={(e) =>
+                      setAnnotationForm({ ...annotationForm, lecturerSentiment: e.target.value })
+                    }
+                    className="glass-input w-full rounded-xl px-3 py-2 text-xs font-semibold"
+                  >
+                    <option value="Positif">Positif (Mendukung / Positif)</option>
+                    <option value="Negatif">Negatif (Korektif / Kurang)</option>
+                  </select>
+                  <p className="text-[10px] text-slate-400">Polaritas sentimen biner dosen (SSWE + CNN)</p>
+                </div>
+
+                {/* 5. Student Sentiment */}
                 <div className="space-y-1.5 p-3.5 rounded-2xl bg-black/5 dark:bg-[#030d1d]/40 border border-black/10 dark:border-[#C9A05C]/20">
                   <label className="text-xs font-bold text-[#0A3266] dark:text-[#FBF8F3]">
                     Student_Sentiment (SSWE)

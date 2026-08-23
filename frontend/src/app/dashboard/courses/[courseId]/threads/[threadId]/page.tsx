@@ -24,38 +24,16 @@ import {
   AlertCircle,
   Frown,
   Meh,
-  Shield,
   Clock,
   Reply,
   X,
-  HeartHandshake,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  CornerDownRight,
+  ShieldCheck,
+  Check,
 } from "lucide-react";
-
-const MESSAGE_TYPE_CONFIG: Record<
-  string,
-  { label: string; badgeClass: string; borderClass: string }
-> = {
-  QUESTION: {
-    label: "Pertanyaan Diskusi",
-    badgeClass: "bg-[#0A3266]/15 text-[#0A3266] dark:text-[#8bb8f0] border-[#0A3266]/40",
-    borderClass: "border-l-4 border-l-[#0A3266]",
-  },
-  ANSWER: {
-    label: "Jawaban Mahasiswa",
-    badgeClass: "bg-[#C9A05C]/15 text-[#8c6828] dark:text-[#dbb779] border-[#C9A05C]/40",
-    borderClass: "border-l-4 border-l-[#C9A05C]",
-  },
-  FEEDBACK: {
-    label: "Umpan Balik Dosen / Admin",
-    badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-    borderClass: "border-l-4 border-l-amber-500",
-  },
-  REACTION: {
-    label: "Tanggapan Mahasiswa",
-    badgeClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-    borderClass: "border-l-4 border-l-emerald-500",
-  },
-};
 
 const EMOTIONS_CONFIG: Record<
   string,
@@ -108,6 +86,14 @@ const EMOTIONS_CONFIG: Record<
   },
 };
 
+interface MessageTreeNode {
+  message: Message;
+  level: number;
+  branchStudentId: string;
+  parentAuthorName?: string;
+  children: MessageTreeNode[];
+}
+
 export default function ThreadDetailPage() {
   const { courseId, threadId } = useParams<{
     courseId: string;
@@ -116,22 +102,28 @@ export default function ThreadDetailPage() {
   const { user } = useAuth();
   const [thread, setThread] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [replyBody, setReplyBody] = useState("");
-  const [replyType, setReplyType] = useState<string>("");
-  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [sending, setSending] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
 
-  // Post-interaction reflection state (Separated Opinion & Emotion Pipelines)
-  const [opinionText, setOpinionText] = useState("");
-  const [selectedEmotion, setSelectedEmotion] = useState<string>(""); // Default: empty/null
-  const [selectedSentiment, setSelectedSentiment] = useState<string>(""); // Default: empty/null
-  const [submittingEmotion, setSubmittingEmotion] = useState(false);
-  const [submittingOpinion, setSubmittingOpinion] = useState(false);
-  const [emotionSaved, setEmotionSaved] = useState(false);
-  const [opinionSaved, setOpinionSaved] = useState(false);
+  // Active inline replying state
+  const [replyingToMessageId, setReplyingToMessageId] = useState<string | null>(null);
+  const [replyTargetInfo, setReplyTargetInfo] = useState<{ id: string; name: string; role: string; type: string } | null>(null);
+  const [inlineReplyBody, setInlineReplyBody] = useState("");
+  const [inlineSending, setInlineSending] = useState(false);
 
-  // Custom Modal Dialogs (No window.alert / window.confirm)
+  // Post-discussion Reflection State: Student
+  const [studentOpinionText, setStudentOpinionText] = useState("");
+  const [studentEmotion, setStudentEmotion] = useState<string>("");
+  const [studentSentiment, setStudentSentiment] = useState<string>("");
+  const [submittingStudentReflection, setSubmittingStudentReflection] = useState(false);
+  const [studentReflectionSaved, setStudentReflectionSaved] = useState(false);
+
+  // Post-discussion Evaluation State: Lecturer (per student)
+  const [lecturerEvaluations, setLecturerEvaluations] = useState<
+    Record<string, { opinionText: string; sentiment: string; emotion: string; isSaved: boolean; isSaving: boolean }>
+  >({});
+  const [activeStudentEvalTab, setActiveStudentEvalTab] = useState<string>("");
+
+  // Custom Modal Dialogs
   const [modalAlert, setModalAlert] = useState<{
     isOpen: boolean;
     title: string;
@@ -147,42 +139,52 @@ export default function ThreadDetailPage() {
   const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
   const [closingThread, setClosingThread] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const replyFormRef = useRef<HTMLFormElement>(null);
+  const inlineInputRef = useRef<HTMLTextAreaElement>(null);
   const opinionSectionRef = useRef<HTMLElement>(null);
 
   const loadThread = useCallback(async () => {
     try {
       const data = await threadsApi.getById(threadId);
       setThread(data);
+
       if (user) {
+        // 1. Populate student reflection if exists
         if (user.role === "STUDENT") {
-          const hasAnswered = data.messages?.some(
-            (m: Message) => m.author.id === user.id && m.type === "ANSWER"
+          const myOpinion = data.opinions?.find(
+            (o: any) => o.authorId === user.id && o.authorRole === "STUDENT"
           );
-          setReplyType(hasAnswered ? "REACTION" : "ANSWER");
-        } else if (user.role === "LECTURER") {
-          setReplyType(
-            data.initiatorRole === "STUDENT" ? "ANSWER" : "FEEDBACK"
-          );
-        } else if (user.role === "ADMIN") {
-          setReplyType("FEEDBACK");
+          if (myOpinion) {
+            setStudentOpinionText(myOpinion.opinionText || "");
+            setStudentEmotion(myOpinion.emotion || "");
+            setStudentSentiment(myOpinion.sentiment || "");
+            setStudentReflectionSaved(true);
+          }
         }
 
-        const myOpinion = data.opinions?.find(
-          (o: any) => o.authorId === user.id
-        );
-        if (myOpinion) {
-          if (myOpinion.opinionText && myOpinion.opinionText.trim() !== "") {
-            setOpinionText(myOpinion.opinionText);
-            setOpinionSaved(true);
-          }
-          if (myOpinion.emotion) {
-            setSelectedEmotion(myOpinion.emotion);
-            setEmotionSaved(true);
-          }
-          if (myOpinion.sentiment) {
-            setSelectedSentiment(myOpinion.sentiment);
+        // 2. Populate lecturer evaluation map for all students in class
+        if (user.role === "LECTURER" || user.role === "ADMIN") {
+          const enrolledStudents = data.compliance?.students || [];
+          const initialMap: Record<string, any> = {};
+
+          enrolledStudents.forEach((student: any) => {
+            const savedOp = data.opinions?.find(
+              (o: any) =>
+                (o.authorRole === "LECTURER" || o.authorId === user.id) &&
+                o.targetStudentId === student.id
+            );
+
+            initialMap[student.id] = {
+              opinionText: savedOp?.opinionText || "",
+              sentiment: savedOp?.sentiment || "",
+              emotion: savedOp?.emotion || "",
+              isSaved: !!savedOp,
+              isSaving: false,
+            };
+          });
+
+          setLecturerEvaluations(initialMap);
+          if (enrolledStudents.length > 0 && !activeStudentEvalTab) {
+            setActiveStudentEvalTab(enrolledStudents[0].id);
           }
         }
       }
@@ -191,7 +193,7 @@ export default function ThreadDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [threadId, user]);
+  }, [threadId, user, activeStudentEvalTab]);
 
   useEffect(() => {
     loadThread();
@@ -233,19 +235,8 @@ export default function ThreadDetailPage() {
       );
     });
 
-    socket.on("opinion:submitted", (newOpinion: any) => {
-      setThread((prev: any) => {
-        if (!prev) return prev;
-        const exists = prev.opinions?.some((o: any) => o.id === newOpinion.id);
-        return {
-          ...prev,
-          opinions: exists
-            ? prev.opinions.map((o: any) =>
-                o.id === newOpinion.id ? newOpinion : o
-              )
-            : [...(prev.opinions || []), newOpinion],
-        };
-      });
+    socket.on("opinion:submitted", () => {
+      loadThread();
     });
 
     return () => {
@@ -256,153 +247,196 @@ export default function ThreadDetailPage() {
     };
   }, [threadId, loadThread]);
 
-  // Start replying to a specific message conforming to role rules
-  const handleStartReply = (msg: Message) => {
+  // Handle start inline replying to a specific card (Level 1 or nested)
+  const handleStartInlineReply = (
+    messageId: string,
+    authorName: string,
+    authorRole: string,
+    suggestedType: string
+  ) => {
     if (!user) return;
-    if (user.role === "STUDENT" && msg.author.role !== "LECTURER") {
+
+    // Strict Role constraints
+    if (user.role === "STUDENT" && authorRole === "STUDENT") {
       setModalAlert({
         isOpen: true,
-        title: "Batasan Balasan Role",
-        message: "Sebagai Mahasiswa, Anda hanya dapat membalas pesan dari Dosen pengampu.",
-        variant: "warning",
-      });
-      return;
-    }
-    if (user.role === "LECTURER" && msg.author.role !== "STUDENT") {
-      setModalAlert({
-        isOpen: true,
-        title: "Batasan Balasan Role",
-        message: "Sebagai Dosen, Anda hanya dapat membalas pesan dari Mahasiswa.",
+        title: "Batasan Balasan Mahasiswa",
+        message: "Mahasiswa hanya dapat membalas pertanyaan atau tanggapan dari Dosen pengampu.",
         variant: "warning",
       });
       return;
     }
 
-    setReplyingToMessage(msg);
-
-    if (user.role === "STUDENT") {
-      const hasAnswered = thread?.messages?.some(
-        (m: Message) => m.author.id === user.id && m.type === "ANSWER"
-      );
-      setReplyType(hasAnswered ? "REACTION" : "ANSWER");
-    } else if (user.role === "LECTURER") {
-      setReplyType("FEEDBACK");
+    if (user.role === "LECTURER" && authorRole === "LECTURER") {
+      setModalAlert({
+        isOpen: true,
+        title: "Batasan Balasan Dosen",
+        message: "Dosen hanya dapat membalas pesan dan jawaban dari Mahasiswa.",
+        variant: "warning",
+      });
+      return;
     }
+
+    setReplyingToMessageId(messageId);
+    setReplyTargetInfo({
+      id: messageId,
+      name: authorName,
+      role: authorRole,
+      type: suggestedType,
+    });
+    setInlineReplyBody("");
 
     setTimeout(() => {
-      replyFormRef.current?.scrollIntoView({ behavior: "smooth" });
+      inlineInputRef.current?.focus();
     }, 100);
   };
 
-  const handleSendReply = async (e: React.FormEvent) => {
+  const handleCancelInlineReply = () => {
+    setReplyingToMessageId(null);
+    setReplyTargetInfo(null);
+    setInlineReplyBody("");
+  };
+
+  const handleSendInlineReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyBody.trim() || !replyType) return;
-    setSending(true);
+    if (!inlineReplyBody.trim() || !replyTargetInfo) return;
+
+    setInlineSending(true);
     try {
+      const parentMessageId = replyTargetInfo.id === "root-topic" ? undefined : replyTargetInfo.id;
       await threadsApi.addMessage(threadId, {
-        type: replyType,
-        body: replyBody,
-        parentMessageId: replyingToMessage ? replyingToMessage.id : undefined,
+        type: replyTargetInfo.type,
+        body: inlineReplyBody.trim(),
+        parentMessageId,
       });
-      setReplyBody("");
-      setReplyingToMessage(null);
-      await loadThread();
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    } catch (err: any) {
-      setModalAlert({
-        isOpen: true,
-        title: "Gagal Mengirim Respon",
-        message: err.message || "Terjadi kesalahan saat mengirim pesan balasan.",
-        variant: "danger",
-      });
-    } finally {
-      setSending(false);
-    }
-  };
 
-  // Submit Emotion & Sentiment Separately
-  const handleSubmitEmotion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEmotion && !selectedSentiment) {
-      setModalAlert({
-        isOpen: true,
-        title: "Pilih Emosi atau Sentimen",
-        message: "Silakan pilih salah satu ikon emosi atau tombol polaritas sentimen sebelum menyimpan.",
-        variant: "warning",
-      });
-      return;
-    }
-    setSubmittingEmotion(true);
-    try {
-      await opinionsApi.create(threadId, {
-        emotion: selectedEmotion || undefined,
-        sentiment: selectedSentiment || undefined,
-      });
-      setEmotionSaved(true);
+      setInlineReplyBody("");
+      setReplyingToMessageId(null);
+      setReplyTargetInfo(null);
       await loadThread();
     } catch (err: any) {
       setModalAlert({
         isOpen: true,
-        title: "Gagal Menyimpan Emosi",
-        message: err.message || "Terjadi kesalahan saat menyimpan anotasi emosi.",
+        title: "Gagal Mengirim Balasan",
+        message: err.message || "Terjadi kendala saat mengirimkan pesan balasan.",
         variant: "danger",
       });
     } finally {
-      setSubmittingEmotion(false);
+      setInlineSending(false);
     }
   };
 
-  // Submit Reflection Opinion Separately (Mandatory for closing)
-  const handleSubmitOpinion = async (e: React.FormEvent) => {
+  // Student reflection submission
+  const handleSaveStudentReflection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!opinionText.trim()) {
+    if (!studentOpinionText.trim() && !studentEmotion && !studentSentiment) {
       setModalAlert({
         isOpen: true,
-        title: "Opini Tidak Boleh Kosong",
-        message: "Silakan tuliskan refleksi pembelajaran Anda sebelum menyimpan.",
+        title: "Isi Refleksi Anda",
+        message: "Silakan tuliskan refleksi pembelajaran dan pilih emosi/sentimen sebelum menyimpan.",
         variant: "warning",
       });
       return;
     }
-    setSubmittingOpinion(true);
+
+    setSubmittingStudentReflection(true);
     try {
       await opinionsApi.create(threadId, {
-        opinionText: opinionText.trim(),
+        opinionText: studentOpinionText.trim(),
+        emotion: studentEmotion || undefined,
+        sentiment: studentSentiment || undefined,
       });
-      setOpinionSaved(true);
+      setStudentReflectionSaved(true);
       await loadThread();
+      setModalAlert({
+        isOpen: true,
+        title: "Refleksi Tersimpan",
+        message: "Refleksi, emosi, dan sentimen Anda berhasil disimpan ke database penelitian ARJUNA-Net.",
+        variant: "success",
+      });
     } catch (err: any) {
       setModalAlert({
         isOpen: true,
         title: "Gagal Menyimpan Refleksi",
-        message: err.message || "Terjadi kesalahan saat menyimpan refleksi opini.",
+        message: err.message || "Terjadi kesalahan saat menyimpan refleksi mahasiswa.",
         variant: "danger",
       });
     } finally {
-      setSubmittingOpinion(false);
+      setSubmittingStudentReflection(false);
     }
   };
 
-  // Check opinion requirement before closing
-  const handleOpenCloseModal = () => {
-    setShowCloseConfirmModal(true);
+  // Lecturer evaluation submission per student
+  const handleSaveLecturerEvaluation = async (studentId: string) => {
+    const evalData = lecturerEvaluations[studentId];
+    if (!evalData) return;
+
+    if (!evalData.opinionText.trim() && !evalData.sentiment && !evalData.emotion) {
+      setModalAlert({
+        isOpen: true,
+        title: "Lengkapi Evaluasi Mahasiswa",
+        message: "Silakan masukkan catatan opini, pilih sentimen, atau emosi untuk mahasiswa ini sebelum menyimpan.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    setLecturerEvaluations((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], isSaving: true },
+    }));
+
+    try {
+      await opinionsApi.create(threadId, {
+        targetStudentId: studentId,
+        opinionText: evalData.opinionText.trim(),
+        sentiment: evalData.sentiment || undefined,
+        emotion: evalData.emotion || undefined,
+      });
+
+      setLecturerEvaluations((prev) => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], isSaved: true, isSaving: false },
+      }));
+
+      await loadThread();
+      setModalAlert({
+        isOpen: true,
+        title: "Evaluasi Mahasiswa Berhasil Disimpan",
+        message: "Data evaluasi opini, sentimen dosen, dan emosi untuk mahasiswa ini berhasil tersimpan.",
+        variant: "success",
+      });
+    } catch (err: any) {
+      setLecturerEvaluations((prev) => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], isSaving: false },
+      }));
+      setModalAlert({
+        isOpen: true,
+        title: "Gagal Menyimpan Evaluasi",
+        message: err.message || "Terjadi kesalahan saat menyimpan evaluasi dosen.",
+        variant: "danger",
+      });
+    }
   };
 
+  // Close forum confirmation
   const handleConfirmCloseThread = async () => {
     setClosingThread(true);
     try {
       await threadsApi.close(threadId);
       setShowCloseConfirmModal(false);
       await loadThread();
+      setTimeout(() => {
+        opinionSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 300);
     } catch (err: any) {
       setShowCloseConfirmModal(false);
       setModalAlert({
         isOpen: true,
         title: "Gagal Menutup Forum",
-        message: err.message || "Pastikan Refleksi Opini Dosen telah terisi sebelum menutup forum secara manual.",
-        variant: "warning",
+        message: err.message || "Terjadi kesalahan saat menutup forum diskusi perkuliahan.",
+        variant: "danger",
       });
     } finally {
       setClosingThread(false);
@@ -434,19 +468,68 @@ export default function ThreadDetailPage() {
 
   const isLecturer = user?.role === "LECTURER";
   const isAdmin = user?.role === "ADMIN";
+  const isStudent = user?.role === "STUDENT";
   const isClosed = thread.status === "CLOSED";
   const isExpired =
     isClosed || (thread.expiresAt && new Date() > new Date(thread.expiresAt));
 
-  // Check if current lecturer or any lecturer has filled opinion
-  const lecturerOpinionObj = thread.opinions?.find(
-    (o: any) => o.authorRole === "LECTURER" && o.opinionText && o.opinionText.trim() !== ""
+  // Find root question message (Level 1)
+  const rootQuestionMsg =
+    thread.messages?.find((m: Message) => m.type === "QUESTION" && !m.parentMessageId) ||
+    thread.messages?.[0] ||
+    null;
+
+  // Build Hierarchical Message Tree
+  const messageMap = new Map<string, Message>();
+  thread.messages?.forEach((m: Message) => messageMap.set(m.id, m));
+
+  // Find student answers that reply to root question (Level 2)
+  const level2Answers = (thread.messages || []).filter(
+    (m: Message) =>
+      m.id !== rootQuestionMsg?.id &&
+      (!m.parentMessageId || m.parentMessageId === rootQuestionMsg?.id || m.type === "ANSWER")
   );
-  const isLecturerOpinionFilled = !!lecturerOpinionObj;
+
+  // Helper to recursively build reply tree for a given parent message
+  const buildTree = (
+    parentMsg: Message,
+    currentLevel: number,
+    branchStudentId: string,
+    parentAuthorName?: string
+  ): MessageTreeNode => {
+    const childMessages = (thread.messages || []).filter(
+      (m: Message) => m.parentMessageId === parentMsg.id && m.id !== parentMsg.id
+    );
+
+    return {
+      message: parentMsg,
+      level: currentLevel,
+      branchStudentId,
+      parentAuthorName,
+      children: childMessages.map((child: Message) =>
+        buildTree(child, currentLevel + 1, branchStudentId, parentMsg.author?.name)
+      ),
+    };
+  };
+
+  const discussionBranches: MessageTreeNode[] = level2Answers.map((l2Msg: Message) => {
+    const studentId = l2Msg.author.role === "STUDENT" ? l2Msg.author.id : "";
+    return buildTree(l2Msg, 2, studentId, rootQuestionMsg?.author?.name || "Dosen");
+  });
+
+  // Check if current student has already submitted a Level 2 answer to the main topic
+  const hasCurrentStudentAnsweredLevel1 = isStudent && (thread.messages || []).some(
+    (m: Message) => m.author.id === user?.id && m.type === "ANSWER"
+  );
+
+  // Enrolled students for compliance & evaluations
+  const enrolledStudents = thread.compliance?.students || [];
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Bar */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          1. HEADER BAR
+      ═══════════════════════════════════════════════════════════════════ */}
       <div className="glass-panel relative overflow-hidden rounded-3xl p-6 shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -510,17 +593,17 @@ export default function ThreadDetailPage() {
             )}
 
             {isClosed ? (
-              <span className="inline-flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-500">
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-500">
                 <Lock className="h-3.5 w-3.5" />
-                <span>Diskusi Ditutup</span>
+                <span>Forum Ditutup</span>
               </span>
             ) : isLecturer || isAdmin ? (
               <button
                 type="button"
-                onClick={handleOpenCloseModal}
+                onClick={() => setShowCloseConfirmModal(true)}
                 className="glass-button-secondary rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-red-500/40 hover:text-red-500 transition-colors"
               >
-                Tutup Diskusi
+                Tutup Forum Diskusi
               </button>
             ) : null}
           </div>
@@ -532,7 +615,7 @@ export default function ThreadDetailPage() {
             <div className="flex items-center justify-between text-xs font-bold">
               <div className="flex items-center gap-2 text-[#0A3266] dark:text-white">
                 <GraduationCap className="h-4 w-4 text-[#C9A05C]" />
-                <span>Kepatuhan Menjawab Mahasiswa</span>
+                <span>Partisipasi Menjawab Mahasiswa</span>
               </div>
               <span className="text-[#8c6828] dark:text-[#C9A05C]">
                 {thread.compliance.answered} / {thread.compliance.total} Mahasiswa (
@@ -569,231 +652,213 @@ export default function ThreadDetailPage() {
             <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-sm font-bold text-rose-600 dark:text-rose-300">
-                Sesi Forum Diskusi Telah Ditutup / Kadaluarsa
+                Sesi Forum Diskusi Telah Ditutup (Read-Only)
               </h4>
               <p className="text-xs text-rose-600/90 dark:text-rose-300/90 mt-1 leading-relaxed">
-                Waktu sesi aktif diskusi telah berakhir. Peserta tidak dapat mengirimkan respon atau balasan baru, namun seluruh riwayat tanya-jawab dan refleksi pembelajaran tetap dapat diakses dalam mode baca (Read-Only).
+                Waktu sesi aktif diskusi telah berakhir. Ruang diskusi beralih ke mode baca dan formulir evaluasi refleksi & sentimen pembelajaran di bawah telah aktif untuk diisi.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Messages Timeline */}
-      <div className="space-y-4">
-        {thread.messages?.map((msg: Message) => {
-          const config =
-            MESSAGE_TYPE_CONFIG[msg.type] || MESSAGE_TYPE_CONFIG.QUESTION;
-          const isOwnMessage = msg.author.id === user?.id;
-
-          // Role-based reply constraints:
-          // Mahasiswa can ONLY reply to Dosen messages
-          // Dosen can ONLY reply to Mahasiswa messages
-          // Admin can reply to all messages
-          const canReplyToMsg =
-            !isExpired &&
-            (isAdmin ||
-              (user?.role === "STUDENT" && msg.author.role === "LECTURER") ||
-              (user?.role === "LECTURER" && msg.author.role === "STUDENT"));
-
-          return (
-            <div
-              key={msg.id}
-              className={`glass-panel relative overflow-hidden rounded-3xl p-6 shadow-lg transition-all duration-300 ${config.borderClass}`}
-            >
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#0A3266]/10 dark:bg-white/10 text-xs font-bold text-[#0A3266] dark:text-white">
-                    {msg.author.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#0A3266] dark:text-white">
-                        {msg.author.name}
-                      </span>
-                      {isOwnMessage && (
-                        <span className="rounded-md bg-[#0A3266]/15 dark:bg-[#C9A05C]/20 px-2 py-0.5 text-[10px] font-bold text-[#0A3266] dark:text-[#C9A05C] border border-[#C9A05C]/30">
-                          Anda
-                        </span>
-                      )}
-                      <span className="rounded-md bg-black/5 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                        {msg.author.role === "LECTURER" ? "Dosen" : "Mahasiswa"}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {new Date(msg.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
+      {/* ═══════════════════════════════════════════════════════════════════
+          2. HIERARCHICAL DISCUSSION FORUM TREE (LEVEL 1 -> LEVEL 2 -> LEVEL 3 -> LEVEL 4...)
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-6">
+        {/* ── LEVEL 1: TOPIK DISKUSI UTAMA (DOSEN) ── */}
+        {rootQuestionMsg && (
+          <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-7 shadow-xl border-l-4 border-l-[#0A3266] bg-gradient-to-br from-[#0A3266]/10 via-transparent to-transparent dark:from-[#0A3266]/30">
+            {/* Header info */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0A3266]/15 dark:bg-white/10 text-sm font-black text-[#0A3266] dark:text-[#ebd09e] border border-[#0A3266]/20">
+                  {rootQuestionMsg.author.name.charAt(0).toUpperCase()}
                 </div>
-
-                <span
-                  className={`inline-flex items-center rounded-xl px-3 py-1 text-xs font-bold border ${config.badgeClass}`}
-                >
-                  {config.label}
-                </span>
-              </div>
-
-              {/* Parent Message Quoted Preview if replying to a specific message */}
-              {msg.parent && (
-                <div className="mb-3 rounded-2xl border border-[#C9A05C]/30 bg-black/[0.03] dark:bg-white/[0.04] p-3 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-[#8c6828] dark:text-[#ebd09e] text-[11px] mb-1">
-                    <Reply className="h-3.5 w-3.5 text-[#C9A05C]" />
-                    <span>
-                      Membalas pesan dari {msg.parent.author?.name || "Pengguna"} (
-                      {msg.parent.author?.role === "LECTURER" ? "Dosen" : "Mahasiswa"}):
-                    </span>
-                  </div>
-                  <p className="line-clamp-2 italic text-slate-600 dark:text-slate-300 font-sans pl-4 border-l-2 border-[#C9A05C]/50">
-                    "{msg.parent.body.replace(/<[^>]*>?/gm, "")}"
-                  </p>
-                </div>
-              )}
-
-              <div
-                className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-wrap pl-1"
-                dangerouslySetInnerHTML={{ __html: msg.body }}
-              />
-
-              {/* Reply Button on Message conforming to Role Rules */}
-              {canReplyToMsg && (
-                <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/5 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => handleStartReply(msg)}
-                    className="flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] bg-[#0A3266]/10 dark:bg-[#C9A05C]/15 hover:bg-[#0A3266]/20 dark:hover:bg-[#C9A05C]/25 transition-all shadow-sm group"
-                  >
-                    <Reply className="h-3.5 w-3.5 text-[#C9A05C] group-hover:-translate-x-0.5 transition-transform" />
-                    <span>Balas Pesan Ini</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Reply Composer Form */}
-      {!isExpired ? (
-        <form
-          ref={replyFormRef}
-          onSubmit={handleSendReply}
-          className="glass-panel relative overflow-hidden rounded-3xl p-6 shadow-2xl border-t-2 border-t-[#C9A05C]/50"
-        >
-          {/* Targeted Reply Banner if Replying to a Message */}
-          {replyingToMessage && (
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-[#C9A05C]/15 border border-[#C9A05C]/35 p-3.5 text-xs animate-in fade-in">
-              <div className="flex items-start gap-2.5">
-                <Reply className="h-4 w-4 text-[#C9A05C] shrink-0 mt-0.5" />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#0A3266] dark:text-white">
-                      Membalas: {replyingToMessage.author.name}
+                    <span className="text-sm font-black text-[#0A3266] dark:text-white">
+                      {rootQuestionMsg.author.name}
                     </span>
-                    <span className="rounded-md bg-[#0A3266]/15 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-[#0A3266] dark:text-[#C9A05C]">
-                      {replyingToMessage.author.role === "LECTURER" ? "Dosen" : "Mahasiswa"}
+                    <span className="rounded-md bg-[#0A3266]/15 dark:bg-[#C9A05C]/20 px-2 py-0.5 text-[10px] font-extrabold text-[#0A3266] dark:text-[#C9A05C] border border-[#0A3266]/30">
+                      Dosen Pengampu
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-1 italic mt-0.5">
-                    "{replyingToMessage.body.replace(/<[^>]*>?/gm, "")}"
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {new Date(rootQuestionMsg.createdAt).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setReplyingToMessage(null)}
-                className="glass-button-secondary flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white"
-                title="Batal Membalas Spesifik"
-              >
-                <X className="h-3.5 w-3.5" />
-                <span>Batal</span>
-              </button>
-            </div>
-          )}
 
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-[#0A3266] dark:text-white">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-[#C9A05C]" />
-              <span>
-                {replyingToMessage
-                  ? `Kirim Balasan untuk ${replyingToMessage.author.name}`
-                  : replyType === "ANSWER"
-                  ? "Tulis Jawaban Wajib Anda"
-                  : replyType === "FEEDBACK"
-                  ? "Beri Umpan Balik & Evaluasi Dosen"
-                  : "Beri Tanggapan atas Diskusi"}
-              </span>
+              {/* Hierarchy Level Badge */}
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#0A3266]/40 bg-[#0A3266]/15 px-3 py-1 text-xs font-black text-[#0A3266] dark:text-[#8bb8f0]">
+                <Layers className="h-3.5 w-3.5 text-[#0A3266] dark:text-[#8bb8f0]" />
+                <span>Level 1: Topik Diskusi Utama (Dosen)</span>
+              </div>
             </div>
 
-            {/* If Admin: allow switching response type */}
-            {isAdmin && (
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-slate-400">Tipe Respon:</span>
-                <select
-                  value={replyType}
-                  onChange={(e) => setReplyType(e.target.value)}
-                  className="glass-input rounded-xl px-2.5 py-1 text-xs font-semibold"
-                >
-                  <option value="FEEDBACK">Feedback Dosen/Admin</option>
-                  <option value="ANSWER">Jawaban Kelas</option>
-                  <option value="REACTION">Reaksi Mahasiswa</option>
-                </select>
+            {/* Question Body */}
+            <div
+              className="text-sm sm:text-base leading-relaxed text-slate-800 dark:text-slate-100 font-medium pl-1"
+              dangerouslySetInnerHTML={{ __html: rootQuestionMsg.body }}
+            />
+
+            {/* Level 1 Reply Trigger Button (Mahasiswa / Admin) */}
+            {!isExpired && (isStudent || isAdmin) && (
+              <div className="mt-5 pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {hasCurrentStudentAnsweredLevel1
+                    ? "✓ Anda telah mengirimkan jawaban atas pertanyaan dosen. Anda dapat berdiskusi pada balasan Dosen di bawah."
+                    : "Mahasiswa diwajibkan menjawab pertanyaan utama ini untuk berpartisipasi dalam diskusi."}
+                </span>
+
+                {!hasCurrentStudentAnsweredLevel1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleStartInlineReply(
+                        "root-topic",
+                        rootQuestionMsg.author.name,
+                        "LECTURER",
+                        "ANSWER"
+                      )
+                    }
+                    className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white bg-[#0A3266] hover:bg-[#0c3e80] dark:bg-[#C9A05C] dark:text-[#0A3266] dark:hover:bg-[#dbb36e] transition-all shadow-md group"
+                  >
+                    <Reply className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                    <span>Balas Pertanyaan Dosen</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Inline Reply Composer for Level 1 */}
+            {replyingToMessageId === "root-topic" && (
+              <div className="mt-4 rounded-2xl border-2 border-[#C9A05C]/60 bg-black/[0.02] dark:bg-white/[0.04] p-4 animate-in fade-in slide-in-from-top-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e]">
+                    <CornerDownRight className="h-4 w-4 text-[#C9A05C]" />
+                    <span>Menulis Jawaban atas Pertanyaan Dosen</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelInlineReply}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSendInlineReply} className="space-y-3">
+                  <textarea
+                    ref={inlineInputRef}
+                    value={inlineReplyBody}
+                    onChange={(e) => setInlineReplyBody(e.target.value)}
+                    placeholder="Tuliskan jawaban Anda atas pertanyaan dosen secara jelas dan terperinci..."
+                    required
+                    rows={3}
+                    className="glass-input w-full resize-none rounded-xl px-4 py-3 text-sm placeholder-slate-400"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelInlineReply}
+                      className="glass-button-secondary rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={inlineSending || !inlineReplyBody.trim()}
+                      className="glass-button-gold flex items-center gap-2 rounded-xl px-4 py-1.5 text-xs font-bold disabled:opacity-50"
+                    >
+                      {inlineSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      <span>Kirim Jawaban</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
           </div>
+        )}
 
-          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-            {replyType === "ANSWER"
-              ? "Berikan jawaban lengkap dan terstruktur atas pertanyaan yang diajukan."
-              : replyType === "FEEDBACK"
-              ? "Berikan penilaian konstruktif untuk memperdalam pemahaman mahasiswa."
-              : "Sampaikan pandangan atau pertanyaan lanjutan untuk memperkaya diskusi kelas."}
-          </p>
-
-          <textarea
-            value={replyBody}
-            onChange={(e) => setReplyBody(e.target.value)}
-            placeholder="Tuliskan respon Anda di sini secara jelas dan terperinci..."
-            required
-            rows={3}
-            className="glass-input mb-3 w-full resize-none rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
-          />
-
-          <div className="flex justify-end gap-2">
-            {replyingToMessage && (
-              <button
-                type="button"
-                onClick={() => setReplyingToMessage(null)}
-                className="glass-button-secondary rounded-xl px-4 py-2 text-xs font-semibold"
-              >
-                Batal Reply
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={sending}
-              className="glass-button-primary flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50"
-            >
-              <Send className="h-3.5 w-3.5 text-[#C9A05C]" />
-              <span>{sending ? "Mengirim Respon..." : "Kirim Respon"}</span>
-            </button>
+        {/* ── DISCUSSION BRANCHES (SINGLE CONTAINER / CARD BOX PER STUDENT ANSWER & REPLIES) ── */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 px-2">
+            <MessageCircle className="h-4 w-4 text-[#C9A05C]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Ruang Diskusi Mahasiswa ({discussionBranches.length} Diskusi)
+            </h3>
           </div>
-        </form>
-      ) : null}
+
+          {discussionBranches.length === 0 ? (
+            <div className="glass-panel text-center rounded-3xl py-12 border border-dashed border-black/10 dark:border-white/10">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                Belum ada jawaban dari mahasiswa pada topik ini.
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Mahasiswa dapat mengklik tombol "Balas Pertanyaan Dosen" di atas untuk mengirimkan jawaban.
+              </p>
+            </div>
+          ) : (
+            discussionBranches.map((branch, branchIndex) => {
+              const flatMessages = flattenBranch(branch);
+
+              return (
+                <div
+                  key={branch.message.id || branchIndex}
+                  className="glass-panel relative overflow-hidden rounded-3xl p-5 sm:p-7 shadow-lg border-l-4 border-l-[#C9A05C] border-black/10 dark:border-white/[0.08] space-y-5"
+                >
+                  {/* All replies in this branch flow directly under the student's answer inside the same Card Box */}
+                  <div className="space-y-5">
+                    {flatMessages.map((item, itemIdx) => {
+                      const isInitialAnswer = itemIdx === 0;
+
+                      return (
+                        <div
+                          key={item.message.id}
+                          className={isInitialAnswer ? "" : "pt-5 border-t border-black/10 dark:border-white/[0.08]"}
+                        >
+                          {renderMessageItem(
+                            item.message,
+                            item.level,
+                            item.branchStudentId,
+                            item.parentAuthorName,
+                            user,
+                            isExpired,
+                            replyingToMessageId,
+                            inlineReplyBody,
+                            inlineSending,
+                            inlineInputRef,
+                            handleStartInlineReply,
+                            handleCancelInlineReply,
+                            handleSendInlineReply,
+                            setInlineReplyBody
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          REFLEKSI PEMBELAJARAN & ANOTASI EMOSI (ARJUNA-Net Pipeline)
+          3. REFLEKSI & EVALUASI PASCA-DISKUSI (HANYA SAAT FORUM DITUTUP / EXPIRED)
       ═══════════════════════════════════════════════════════════════════ */}
       <section
         ref={opinionSectionRef}
-        aria-label="Refleksi Pembelajaran"
-        className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8 border-[#C9A05C]/35 space-y-8"
+        aria-label="Refleksi & Evaluasi Pembelajaran"
+        className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8 border-[#C9A05C]/40 space-y-6 mt-8"
       >
         {/* Section Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-black/10 dark:border-white/[0.08] pb-5">
@@ -803,324 +868,453 @@ export default function ThreadDetailPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#0A3266] dark:text-white">
-                Refleksi Pembelajaran & Anotasi Emosi
+                Refleksi Pembelajaran, Sentimen & Evaluasi ARJUNA-Net
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-300">
-                Pengumpulan data afektif & evaluasi pemahaman untuk peningkatan kualitas pembelajaran dan dataset ARJUNA-Net.
+                Pengumpulan data 6 label afektif (Lucturer_Opinion, Student_Opinion, Lucturer_Sentiment, Student_Sentiment, Lucturer_Emotion, Student_Emotion) untuk dataset penelitian.
               </p>
             </div>
           </div>
+
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
+              isExpired
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+                : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40"
+            }`}
+          >
+            {isExpired ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <Lock className="h-3.5 w-3.5 text-amber-500" />}
+            <span>{isExpired ? "Form Evaluasi Terbuka (Pasca-Diskusi)" : "Terkunci Selama Diskusi Aktif"}</span>
+          </span>
         </div>
 
-        {/* ── BAGIAN 1: ANOTASI EMOSI & SENTIMEN (OPSIONAL / TERPISAH) ── */}
-        <div className="rounded-3xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Smile className="h-4 w-4 text-[#C9A05C]" />
-              <h4 className="text-sm font-bold text-[#0A3266] dark:text-[#ebd09e]">
-                1. Anotasi Emosi & Sentimen Interaksi (Opsional)
-              </h4>
-            </div>
-            {emotionSaved && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Emosi Tersimpan ({selectedEmotion || "Tersimpan"})</span>
-              </span>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-3 text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-            💡 <strong>Catatan:</strong> Jika Anda tidak memilih emosi atau sentimen secara manual, sistem NLP heuristik ARJUNA-Net akan menginferensi emosi dan sentimen Anda secara otomatis dari teks jawaban atau pesan diskusi.
-          </div>
-
-          <form onSubmit={handleSubmitEmotion} className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Emotion Selection (5 classes - default unselected/null) */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
-                  <span>Pilih Kategori Emosi:</span>
-                  {selectedEmotion ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedEmotion("");
-                        setEmotionSaved(false);
-                      }}
-                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white underline"
-                    >
-                      Reset Pilihan
-                    </button>
-                  ) : (
-                    <span className="text-[10px] text-slate-400 italic">Belum dipilih (Default: Auto)</span>
-                  )}
-                </label>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {Object.entries(EMOTIONS_CONFIG).map(([key, config]) => {
-                    const isSelected = selectedEmotion === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          setSelectedEmotion(key);
-                          setEmotionSaved(false);
-                        }}
-                        className={`flex items-center gap-2 rounded-xl p-2.5 text-left text-xs font-bold transition-all border ${
-                          isSelected
-                            ? `${config.bg} ${config.color} ${config.border} ring-2 ring-[#C9A05C]/50 shadow-md`
-                            : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
-                        }`}
-                      >
-                        <config.icon className="h-4 w-4 shrink-0" />
-                        <div>
-                          <div className="leading-tight">{config.label}</div>
-                          <div className="text-[10px] font-normal opacity-80">{config.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sentiment Selection (Positif / Negatif / Netral) */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
-                  <span>Pilih Polaritas Sentimen:</span>
-                  {selectedSentiment ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedSentiment("");
-                        setEmotionSaved(false);
-                      }}
-                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white underline"
-                    >
-                      Reset Pilihan
-                    </button>
-                  ) : (
-                    <span className="text-[10px] text-slate-400 italic">Belum dipilih (Default: Auto)</span>
-                  )}
-                </label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSentiment("Positif");
-                      setEmotionSaved(false);
-                    }}
-                    className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
-                      selectedSentiment === "Positif"
-                        ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50 ring-2 ring-emerald-500/40 shadow-md"
-                        : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    <ThumbsUp className="h-4 w-4 text-emerald-500" />
-                    <span>Positif (Mendukung)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSentiment("Negatif");
-                      setEmotionSaved(false);
-                    }}
-                    className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
-                      selectedSentiment === "Negatif"
-                        ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 ring-2 ring-rose-500/40 shadow-md"
-                        : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    <ThumbsDown className="h-4 w-4 text-rose-500" />
-                    <span>Negatif (Kritik / Kendala)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={submittingEmotion}
-                className="glass-button-secondary flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] disabled:opacity-50"
-              >
-                {submittingEmotion && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>{emotionSaved ? "Perbarui Anotasi Emosi" : "Simpan Pilihan Emosi"}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* ── BAGIAN 2: REFLEKSI PEMBELAJARAN (WAJIB DIISI) ── */}
-        <div className="rounded-3xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-[#C9A05C]" />
-              <h4 className="text-sm font-bold text-[#0A3266] dark:text-[#ebd09e]">
-                2. Refleksi & Opini Pembelajaran {isLecturer ? "(Wajib untuk Dosen)" : "(Wajib)"}
-              </h4>
-            </div>
-            {opinionSaved && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Refleksi Opini Tersimpan</span>
-              </span>
-            )}
-          </div>
-
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isLecturer
-              ? "Sebagai Dosen pengampu, Anda wajib mengisi evaluasi & refleksi diskusi ini sebelum dapat menutup forum secara manual."
-              : "Tuliskan pemahaman yang Anda dapatkan, kejelasan topik bahasan, atau saran perbaikan untuk diskusi selanjutnya."}
-          </p>
-
-          <form onSubmit={handleSubmitOpinion} className="space-y-3">
-            <textarea
-              value={opinionText}
-              onChange={(e) => {
-                setOpinionText(e.target.value);
-                setOpinionSaved(false);
-              }}
-              placeholder="Tuliskan refleksi opini dan evaluasi diskusi di sini (minimal 3 karakter)..."
-              required
-              rows={3}
-              className="glass-input w-full resize-none rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
-            />
-
-            <div className="flex justify-end pt-1">
-              <button
-                type="submit"
-                disabled={submittingOpinion || !opinionText.trim()}
-                className="glass-button-gold flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50 shadow-lg"
-              >
-                {submittingOpinion ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5 text-[#0A3266]" />
-                )}
-                <span>{opinionSaved ? "Perbarui Refleksi Opini" : "Simpan Refleksi Opini"}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Existing Reflections List from All Participants */}
-        {thread.opinions && thread.opinions.length > 0 && (
-          <div className="border-t border-black/10 dark:border-white/[0.08] pt-6">
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Catatan Refleksi & Emosi Peserta ({thread.opinions.length})
+        {/* ── KONDISI 1: JIKA FORUM MASIH OPEN (BELUM DITUTUP) ── */}
+        {!isExpired ? (
+          <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 p-6 text-center space-y-2">
+            <Lock className="h-8 w-8 text-amber-500 mx-auto opacity-80" />
+            <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              Sesi Diskusi Forum Masih Berlangsung Aktif
             </h4>
-            <div className="space-y-3">
-              {thread.opinions.map((op: any) => {
-                const emoConfig =
-                  op.emotion && EMOTIONS_CONFIG[op.emotion]
-                    ? EMOTIONS_CONFIG[op.emotion]
-                    : null;
+            <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
+              Formulir pengisian Refleksi Opini, Sentimen, dan Anotasi Emosi akan otomatis aktif dan dapat diakses setelah Dosen menutup sesi diskusi perkuliahan ini.
+            </p>
+            {(isLecturer || isAdmin) && (
+              <button
+                type="button"
+                onClick={() => setShowCloseConfirmModal(true)}
+                className="glass-button-gold mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold shadow-md"
+              >
+                <span>Tutup Diskusi Sekarang untuk Membuka Evaluasi</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          /* ── KONDISI 2: FORUM SELESAI / CLOSED -> USERFLOW EVALUASI ── */
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* A. TAMPILAN DOSEN: EVALUASI PER MAHASISWA */}
+            {(isLecturer || isAdmin) && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-base font-bold text-[#0A3266] dark:text-[#ebd09e] flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-[#C9A05C]" />
+                      <span>Evaluasi & Refleksi Dosen untuk Mahasiswa Kelas</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
+                      Berikan penilaian opini (Lucturer_Opinion), sentimen (Lucturer_Sentiment), dan klasifikasi emosi (Lucturer_Emotion) untuk setiap mahasiswa di kelas ini.
+                    </p>
+                  </div>
+                </div>
 
-                return (
-                  <div
-                    key={op.id}
-                    className="rounded-2xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-4 text-xs text-slate-600 dark:text-slate-300 backdrop-blur-md"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#0A3266] dark:text-white">
-                          {op.author?.name}
-                          <span className="ml-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                            ({op.authorRole === "LECTURER" ? "Dosen" : op.authorRole === "ADMIN" ? "Admin" : "Mahasiswa"})
-                          </span>
-                        </span>
-                      </div>
+                {/* Tab selector per student */}
+                {enrolledStudents.length === 0 ? (
+                  <p className="text-xs text-slate-400">Tidak ada mahasiswa terdaftar di kelas ini.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Student tab pills */}
+                    <div className="flex flex-wrap gap-2">
+                      {enrolledStudents.map((student: any) => {
+                        const evalState = lecturerEvaluations[student.id];
+                        const isSelected = activeStudentEvalTab === student.id;
 
-                      <div className="flex items-center gap-2">
-                        {emoConfig?.icon && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold border ${emoConfig.bg} ${emoConfig.color} ${emoConfig.border}`}
-                          >
-                            <emoConfig.icon className="h-3 w-3" />
-                            <span>{op.emotion}</span>
-                          </span>
-                        )}
-
-                        {op.sentiment && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold ${
-                              op.sentiment === "Positif"
-                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                                : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                        return (
+                          <button
+                            key={student.id}
+                            type="button"
+                            onClick={() => setActiveStudentEvalTab(student.id)}
+                            className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all border ${
+                              isSelected
+                                ? "bg-[#0A3266] text-white dark:bg-[#C9A05C] dark:text-[#0A3266] border-transparent shadow-lg scale-[1.02]"
+                                : "glass-button-secondary text-slate-700 dark:text-slate-200"
                             }`}
                           >
-                            {op.sentiment === "Positif" ? (
-                              <ThumbsUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                evalState?.isSaved
+                                  ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                                  : "bg-amber-400"
+                              }`}
+                            />
+                            <span>{student.name}</span>
+                            {student.hasAnswered ? (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-300">
+                                Aktif
+                              </span>
                             ) : (
-                              <ThumbsDown className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-500/20 text-slate-400">
+                                Pasif
+                              </span>
                             )}
-                            <span>{op.sentiment}</span>
-                          </span>
-                        )}
-
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(op.createdAt).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                    {op.opinionText ? (
-                      <p className="italic text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
-                        &ldquo;{op.opinionText}&rdquo;
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-slate-400 italic">
-                        (Anotasi emosi tersimpan tanpa catatan teks)
-                      </p>
+
+                    {/* Active Student Evaluation Form Card */}
+                    {activeStudentEvalTab && (
+                      <div className="rounded-3xl border border-[#C9A05C]/35 bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-7 space-y-6">
+                        {(() => {
+                          const currentStudent = enrolledStudents.find(
+                            (s: any) => s.id === activeStudentEvalTab
+                          );
+                          const evalState = lecturerEvaluations[activeStudentEvalTab] || {
+                            opinionText: "",
+                            sentiment: "",
+                            emotion: "",
+                            isSaved: false,
+                            isSaving: false,
+                          };
+
+                          if (!currentStudent) return null;
+
+                          return (
+                            <div className="space-y-5">
+                              {/* Header info active student */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 dark:border-white/5 pb-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A05C]/20 text-xs font-bold text-[#C9A05C]">
+                                    {currentStudent.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <h5 className="text-sm font-bold text-[#0A3266] dark:text-white">
+                                      Penilaian untuk: {currentStudent.name}
+                                    </h5>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                      Status Forum: {currentStudent.hasAnswered ? "Mahasiswa telah memberikan jawaban dalam forum" : "Mahasiswa belum menjawab topik"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {evalState.isSaved && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                                    <Check className="h-3.5 w-3.5" />
+                                    <span>Evaluasi Tersimpan</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Form Fields: Lucturer_Sentiment & Lucturer_Emotion */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Lucturer_Sentiment */}
+                                <div className="space-y-2">
+                                  <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
+                                    <span>1. Sentimen Dosen (Lucturer_Sentiment):</span>
+                                    <span className="text-[10px] text-slate-400 font-normal">
+                                      {evalState.sentiment || "Belum dipilih"}
+                                    </span>
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setLecturerEvaluations((prev) => ({
+                                          ...prev,
+                                          [activeStudentEvalTab]: {
+                                            ...prev[activeStudentEvalTab],
+                                            sentiment: "Positif",
+                                            isSaved: false,
+                                          },
+                                        }))
+                                      }
+                                      className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                                        evalState.sentiment === "Positif"
+                                          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50 ring-2 ring-emerald-500/40 shadow-md"
+                                          : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                                      }`}
+                                    >
+                                      <ThumbsUp className="h-4 w-4 text-emerald-500" />
+                                      <span>Positif (Pemahaman Baik / Aktif)</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setLecturerEvaluations((prev) => ({
+                                          ...prev,
+                                          [activeStudentEvalTab]: {
+                                            ...prev[activeStudentEvalTab],
+                                            sentiment: "Negatif",
+                                            isSaved: false,
+                                          },
+                                        }))
+                                      }
+                                      className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                                        evalState.sentiment === "Negatif"
+                                          ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 ring-2 ring-rose-500/40 shadow-md"
+                                          : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                                      }`}
+                                    >
+                                      <ThumbsDown className="h-4 w-4 text-rose-500" />
+                                      <span>Negatif (Kurang / Pasif)</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Lucturer_Emotion */}
+                                <div className="space-y-2">
+                                  <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
+                                    <span>2. Anotasi Emosi Dosen (Lucturer_Emotion):</span>
+                                    <span className="text-[10px] text-slate-400 font-normal">
+                                      {evalState.emotion || "Belum dipilih"}
+                                    </span>
+                                  </label>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {Object.entries(EMOTIONS_CONFIG).map(([key, config]) => {
+                                      const isSelected = evalState.emotion === key;
+                                      return (
+                                        <button
+                                          key={key}
+                                          type="button"
+                                          onClick={() =>
+                                            setLecturerEvaluations((prev) => ({
+                                              ...prev,
+                                              [activeStudentEvalTab]: {
+                                                ...prev[activeStudentEvalTab],
+                                                emotion: key,
+                                                isSaved: false,
+                                              },
+                                            }))
+                                          }
+                                          className={`flex items-center gap-1.5 rounded-xl p-2 text-left text-xs font-bold transition-all border ${
+                                            isSelected
+                                              ? `${config.bg} ${config.color} ${config.border} ring-2 ring-[#C9A05C]/50 shadow-md`
+                                              : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                                          }`}
+                                        >
+                                          <config.icon className="h-3.5 w-3.5 shrink-0" />
+                                          <div className="leading-tight text-[11px]">{config.label}</div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Lucturer_Opinion Textarea */}
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300">
+                                  3. Catatan Refleksi & Opini Dosen untuk Mahasiswa Ini (Lucturer_Opinion):
+                                </label>
+                                <textarea
+                                  value={evalState.opinionText}
+                                  onChange={(e) =>
+                                    setLecturerEvaluations((prev) => ({
+                                      ...prev,
+                                      [activeStudentEvalTab]: {
+                                        ...prev[activeStudentEvalTab],
+                                        opinionText: e.target.value,
+                                        isSaved: false,
+                                      },
+                                    }))
+                                  }
+                                  placeholder={`Tuliskan ulasan, evaluasi pemahaman, atau catatan keaktifan untuk ${currentStudent.name}...`}
+                                  rows={3}
+                                  className="glass-input w-full resize-none rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
+                                />
+                              </div>
+
+                              {/* Action Save per student */}
+                              <div className="flex justify-end pt-2">
+                                <button
+                                  type="button"
+                                  disabled={evalState.isSaving}
+                                  onClick={() => handleSaveLecturerEvaluation(activeStudentEvalTab)}
+                                  className="glass-button-gold flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50 shadow-lg"
+                                >
+                                  {evalState.isSaving ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4 text-[#0A3266]" />
+                                  )}
+                                  <span>
+                                    {evalState.isSaved
+                                      ? `Perbarui Evaluasi (${currentStudent.name})`
+                                      : `Simpan Evaluasi (${currentStudent.name})`}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            )}
+
+            {/* B. TAMPILAN MAHASISWA: REFLEKSI SISWA UNTUK DOSEN */}
+            {isStudent && (
+              <div className="rounded-3xl border border-black/10 dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-7 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 dark:border-white/5 pb-3">
+                  <div>
+                    <h4 className="text-base font-bold text-[#0A3266] dark:text-[#ebd09e] flex items-center gap-2">
+                      <Smile className="h-5 w-5 text-[#C9A05C]" />
+                      <span>Refleksi Pembelajaran Mahasiswa untuk Dosen Pengampu</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
+                      Isi data refleksi opini (Student_Opinion), sentimen (Student_Sentiment), dan emosi (Student_Emotion) selama berdiskusi dengan Dosen.
+                    </p>
+                  </div>
+
+                  {studentReflectionSaved && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>Refleksi Anda Tersimpan</span>
+                    </span>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveStudentReflection} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Student_Sentiment */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
+                        <span>1. Polaritas Sentimen Anda (Student_Sentiment):</span>
+                        <span className="text-[10px] text-slate-400">{studentSentiment || "Belum dipilih"}</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStudentSentiment("Positif");
+                            setStudentReflectionSaved(false);
+                          }}
+                          className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                            studentSentiment === "Positif"
+                              ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50 ring-2 ring-emerald-500/40 shadow-md"
+                              : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                          }`}
+                        >
+                          <ThumbsUp className="h-4 w-4 text-emerald-500" />
+                          <span>Positif (Mendukung / Jelas)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStudentSentiment("Negatif");
+                            setStudentReflectionSaved(false);
+                          }}
+                          className={`flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold transition-all border ${
+                            studentSentiment === "Negatif"
+                              ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 ring-2 ring-rose-500/40 shadow-md"
+                              : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                          }`}
+                        >
+                          <ThumbsDown className="h-4 w-4 text-rose-500" />
+                          <span>Negatif (Kritik / Bingung)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Student_Emotion */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300 flex items-center justify-between">
+                        <span>2. Kategori Emosi Anda (Student_Emotion):</span>
+                        <span className="text-[10px] text-slate-400">{studentEmotion || "Belum dipilih"}</span>
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Object.entries(EMOTIONS_CONFIG).map(([key, config]) => {
+                          const isSelected = studentEmotion === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => {
+                                setStudentEmotion(key);
+                                setStudentReflectionSaved(false);
+                              }}
+                              className={`flex items-center gap-2 rounded-xl p-2.5 text-left text-xs font-bold transition-all border ${
+                                isSelected
+                                  ? `${config.bg} ${config.color} ${config.border} ring-2 ring-[#C9A05C]/50 shadow-md`
+                                  : "border-black/10 dark:border-white/[0.08] hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                              }`}
+                            >
+                              <config.icon className="h-4 w-4 shrink-0" />
+                              <div>
+                                <div className="leading-tight">{config.label}</div>
+                                <div className="text-[10px] font-normal opacity-80">{config.desc}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Student_Opinion */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[#0A3266] dark:text-slate-300">
+                      3. Refleksi Pembelajaran Mahasiswa (Student_Opinion):
+                    </label>
+                    <textarea
+                      value={studentOpinionText}
+                      onChange={(e) => {
+                        setStudentOpinionText(e.target.value);
+                        setStudentReflectionSaved(false);
+                      }}
+                      placeholder="Tuliskan pemahaman yang Anda dapatkan, kejelasan topik bahasan, atau kesan diskusi dengan dosen pengampu..."
+                      rows={3}
+                      className="glass-input w-full resize-none rounded-2xl px-4 py-3 text-sm placeholder-slate-400"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={submittingStudentReflection}
+                      className="glass-button-gold flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50 shadow-lg"
+                    >
+                      {submittingStudentReflection ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 text-[#0A3266]" />
+                      )}
+                      <span>{studentReflectionSaved ? "Perbarui Refleksi Saya" : "Simpan Refleksi Saya"}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      {/* Confirmation Modal: Tutup Diskusi Manual */}
+      {/* Confirmation Modal: Tutup Diskusi */}
       <ConfirmationModal
         isOpen={showCloseConfirmModal}
         onClose={() => setShowCloseConfirmModal(false)}
-        onConfirm={
-          isLecturer && !isLecturerOpinionFilled
-            ? () => {
-                setShowCloseConfirmModal(false);
-                opinionSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-              }
-            : handleConfirmCloseThread
-        }
-        title={
-          isLecturer && !isLecturerOpinionFilled
-            ? "Refleksi Opini Dosen Wajib Diisi"
-            : "Tutup Forum Diskusi Perkuliahan"
-        }
-        description={
-          isLecturer && !isLecturerOpinionFilled
-            ? "Sesuai ketentuan akademik dan integritas dataset, Dosen pengampu wajib mengisi form Refleksi & Opini sebelum forum dapat ditutup secara manual (kecuali forum tertutup otomatis karena waktu sesi kadaluarsa)."
-            : "Apakah Anda yakin ingin menutup forum diskusi ini? Setelah ditutup, forum akan beralih ke mode Read-Only dan tidak dapat lagi menerima jawaban atau balasan baru."
-        }
-        confirmText={
-          isLecturer && !isLecturerOpinionFilled
-            ? "Isi Refleksi Sekarang"
-            : "Ya, Tutup Forum"
-        }
+        onConfirm={handleConfirmCloseThread}
+        title="Tutup Forum Diskusi Perkuliahan"
+        description="Apakah Anda yakin ingin menutup forum diskusi ini? Setelah ditutup, forum akan beralih ke mode Read-Only dan formulir evaluasi penilaian dosen serta refleksi mahasiswa akan langsung terbuka."
+        confirmText="Ya, Tutup Forum"
         cancelText="Batal"
-        variant={isLecturer && !isLecturerOpinionFilled ? "warning" : "danger"}
+        variant="danger"
         loading={closingThread}
       />
 
-      {/* Custom Modal Dialog (Replaces window.alert) */}
+      {/* Custom Modal Alert */}
       <ConfirmationModal
         isOpen={modalAlert.isOpen}
         onClose={() => setModalAlert({ ...modalAlert, isOpen: false })}
@@ -1130,6 +1324,194 @@ export default function ThreadDetailPage() {
         hideCancel={true}
         variant={modalAlert.variant}
       />
+    </div>
+  );
+}
+
+// ─── HELPER TO FLATTEN BRANCH TREE CHRONOLOGICALLY ─────────────────────
+function flattenBranch(node: MessageTreeNode): { message: Message; level: number; branchStudentId: string; parentAuthorName?: string }[] {
+  const result: { message: Message; level: number; branchStudentId: string; parentAuthorName?: string }[] = [
+    {
+      message: node.message,
+      level: node.level,
+      branchStudentId: node.branchStudentId,
+      parentAuthorName: node.parentAuthorName,
+    },
+  ];
+
+  for (const child of node.children) {
+    result.push(...flattenBranch(child));
+  }
+
+  return result;
+}
+
+// ─── MESSAGE ITEM RENDERER (DIRECTLY UNDER PARAGRAPH INSIDE SAME CARD) ─
+function renderMessageItem(
+  message: Message,
+  level: number,
+  branchStudentId: string,
+  parentAuthorName: string | undefined,
+  currentUser: any,
+  isExpired: boolean,
+  replyingToMessageId: string | null,
+  inlineReplyBody: string,
+  inlineSending: boolean,
+  inlineInputRef: React.RefObject<HTMLTextAreaElement | null>,
+  onStartReply: (messageId: string, name: string, role: string, type: string) => void,
+  onCancelReply: () => void,
+  onSendReply: (e: React.FormEvent) => void,
+  setReplyBody: (val: string) => void
+): React.ReactNode {
+  const isAuthorCurrentUser = message.author.id === currentUser?.id;
+  const isLecturerAuthor = message.author.role === "LECTURER";
+  const isStudentAuthor = message.author.role === "STUDENT";
+
+  // Role reply rules:
+  // - If student: can ONLY reply to Lecturer messages that belong to their own branch
+  // - If lecturer: can reply to any Student messages
+  // - If admin: can reply to any
+  const canCurrentUserReply =
+    !isExpired &&
+    currentUser &&
+    (currentUser.role === "ADMIN" ||
+      (currentUser.role === "STUDENT" &&
+        isLecturerAuthor &&
+        (!branchStudentId || branchStudentId === currentUser.id)) ||
+      (currentUser.role === "LECTURER" && isStudentAuthor));
+
+  // Determine context badge text & style
+  let contextBadgeText = "Menjawab pertanyaan Dosen";
+  let contextBadgeClass = "bg-[#C9A05C]/15 text-[#8c6828] dark:text-[#ebd09e] border-[#C9A05C]/40";
+
+  if (level === 2) {
+    contextBadgeText = "Menjawab pertanyaan Dosen";
+    contextBadgeClass = "bg-[#C9A05C]/15 text-[#8c6828] dark:text-[#ebd09e] border-[#C9A05C]/40";
+  } else if (isLecturerAuthor) {
+    contextBadgeText = `Membalas ${parentAuthorName || "Mahasiswa"}`;
+    contextBadgeClass = "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40";
+  } else {
+    contextBadgeText = `Membalas ${parentAuthorName || "Dosen"}`;
+    contextBadgeClass = "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/40";
+  }
+
+  const suggestedNextType = isStudentAuthor ? "FEEDBACK" : "REACTION";
+
+  return (
+    <div key={message.id} className="w-full space-y-3">
+      {/* Header Info */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#0A3266]/10 dark:bg-white/10 text-xs font-bold text-[#0A3266] dark:text-white">
+            {message.author.name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-[#0A3266] dark:text-white">
+                {message.author.name}
+              </span>
+              {isAuthorCurrentUser && (
+                <span className="rounded-md bg-[#0A3266]/15 dark:bg-[#C9A05C]/20 px-2 py-0.5 text-[10px] font-bold text-[#0A3266] dark:text-[#C9A05C] border border-[#C9A05C]/30">
+                  Anda
+                </span>
+              )}
+              <span className="rounded-md bg-black/5 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                {message.author.role === "LECTURER" ? "Dosen" : "Mahasiswa"}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              {new Date(message.createdAt).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+        </div>
+
+        <span className={`inline-flex items-center rounded-xl px-3 py-1 text-xs font-bold border ${contextBadgeClass}`}>
+          {contextBadgeText}
+        </span>
+      </div>
+
+      {/* Message body */}
+      <div
+        className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-wrap pl-1"
+        dangerouslySetInnerHTML={{ __html: message.body }}
+      />
+
+      {/* Reply button on this message if allowed */}
+      {canCurrentUserReply && (
+        <div className="pt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() =>
+              onStartReply(
+                message.id,
+                message.author.name,
+                message.author.role,
+                suggestedNextType
+              )
+            }
+            className="flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e] bg-[#0A3266]/10 dark:bg-[#C9A05C]/15 hover:bg-[#0A3266]/20 dark:hover:bg-[#C9A05C]/25 transition-all shadow-sm group"
+          >
+            <Reply className="h-3.5 w-3.5 text-[#C9A05C] group-hover:-translate-x-0.5 transition-transform" />
+            <span>Balas {message.author.name}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Inline Reply Composer directly beneath this specific message */}
+      {replyingToMessageId === message.id && (
+        <div className="mt-3 rounded-2xl border-2 border-[#C9A05C]/60 bg-black/[0.02] dark:bg-white/[0.04] p-4 animate-in fade-in slide-in-from-top-2">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#0A3266] dark:text-[#ebd09e]">
+              <CornerDownRight className="h-4 w-4 text-[#C9A05C]" />
+              <span>
+                Membalas {message.author.name} ({message.author.role === "LECTURER" ? "Dosen" : "Mahasiswa"})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onCancelReply}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <form onSubmit={onSendReply} className="space-y-3">
+            <textarea
+              ref={inlineInputRef}
+              value={inlineReplyBody}
+              onChange={(e) => setReplyBody(e.target.value)}
+              placeholder="Tuliskan respon balasan Anda di sini..."
+              required
+              rows={3}
+              className="glass-input w-full resize-none rounded-xl px-4 py-3 text-sm placeholder-slate-400"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onCancelReply}
+                className="glass-button-secondary rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={inlineSending || !inlineReplyBody.trim()}
+                className="glass-button-gold flex items-center gap-2 rounded-xl px-4 py-1.5 text-xs font-bold disabled:opacity-50"
+              >
+                {inlineSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                <span>Kirim Balasan</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

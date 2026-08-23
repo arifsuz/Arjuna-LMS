@@ -328,7 +328,12 @@ export const threads = {
 export const opinions = {
   create: (
     threadId: string,
-    data: { opinionText?: string; sentiment?: string; emotion?: string }
+    data: {
+      targetStudentId?: string;
+      opinionText?: string;
+      sentiment?: string;
+      emotion?: string;
+    }
   ) =>
     request(`/threads/${threadId}/opinions`, { method: "POST", json: data }),
 

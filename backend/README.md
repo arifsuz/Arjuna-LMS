@@ -6,14 +6,14 @@
   <img src="https://img.shields.io/badge/Database-PostgreSQL%2016-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/ORM-Prisma%207-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma 7" />
   <img src="https://img.shields.io/badge/Realtime-Socket.IO%204-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-32%2F32%20Passed-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="32 Tests Passed" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-42%2F42%20Passed-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="42 Tests Passed" />
 </p>
 
 ---
 
 ## 1. Deskripsi & Arsitektur Server
 
-Backend **ARJUNA LMS** adalah RESTful API dan Real-Time WebSocket Gateway berskala enterprise yang dibangun menggunakan framework **NestJS 11** dan **Node.js**. Server ini bertanggung jawab mengelola seluruh operasi akademik LMS, tata kelola hak akses berbasis peran (RBAC), siklus interaksi diskusi terstruktur, mesin kuis dan tugas dengan Turnitin Similarity Index, kalkulasi buku nilai otomatis (*Gradebook Matrix*), serta ekstraksi dataset 15 kolom terstandarisasi untuk penelitian NLP **ARJUNA-Net**.
+Backend **ARJUNA LMS** adalah RESTful API dan Real-Time WebSocket Gateway berskala enterprise yang dibangun menggunakan framework **NestJS 11** dan **Node.js**. Server ini bertanggung jawab mengelola seluruh operasi akademik LMS, tata kelola hak akses berbasis peran (RBAC), siklus interaksi diskusi terstruktur, mesin kuis dan tugas dengan Turnitin Similarity Index, kalkulasi buku nilai otomatis (*Gradebook Matrix*), serta ekstraksi dataset 18 label terstandarisasi untuk penelitian NLP **ARJUNA-Net**.
 
 ---
 
@@ -24,7 +24,7 @@ backend/
 ├── prisma/
 │   ├── schema.prisma             # Skema Relasional PostgreSQL 16 (16 Model Data)
 │   ├── seed.ts                   # Script Inisialisasi Data Demo Komprehensif
-│   └── seed.example.ts           # Template Seeding Mandiri
+│   └── seed.js                   # Template Seeding JavaScript untuk Docker Production
 ├── src/
 │   ├── academic/                 # Modul Utama Fitur Akademik LMS
 │   │   ├── dto/                  # DTO Validasi Modul, Materi, Pertemuan, Tugas, Kuis, Nilai, Pengumuman, Settings
@@ -50,20 +50,21 @@ backend/
 │   │   └── courses.service.ts    # Validasi Hak Akses Kelas & Mahasiswa
 │   ├── datasets/                 # Mesin Ekspor Dataset & NLP Labeling
 │   │   ├── dto/                  # CreateDatasetLabelDto
-│   │   ├── datasets.controller.ts# Export CSV/JSON 15 Kolom & Live Compliance Metrics
-│   │   ├── datasets.service.ts   # Pipeline Ekstraksi 15 Kolom & Heuristik NLP (Ekman 5, SSWE)
-│   │   └── datasets.service.spec.ts # 5 Skenario Pengujian Unit
+│   │   ├── datasets.controller.ts# Export CSV/JSON 18 Label & Live Compliance Metrics
+│   │   ├── datasets.service.ts   # Pipeline Ekstraksi 18 Label, Recursive Multi-turn & Heuristik NLP
+│   │   └── datasets.service.spec.ts # 7 Skenario Pengujian Unit
 │   ├── events/                   # WebSocket Real-Time Gateway (Socket.IO)
 │   │   ├── events.gateway.ts     # Room Subscriptions, Handshake JWT Auth, Live Broadcast
 │   │   └── events.gateway.spec.ts# 4 Skenario Pengujian Unit
-│   ├── opinions/                 # Pengumpulan Opini & Refleksi Diskusi Pasca-Siklus
-│   │   ├── dto/                  # CreateOpinionDto (Sentiment & Emotion Capture)
+│   ├── opinions/                 # Pengumpulan Opini & Refleksi Diskusi Pasca-Siklus (Privat)
+│   │   ├── dto/                  # CreateOpinionDto (Sentiment, Emotion, targetStudentId)
 │   │   ├── opinions.controller.ts# Endpoint Refleksi Peserta
-│   │   └── opinions.service.ts   # Validasi Siklus Opini Dosen & Mahasiswa
+│   │   └── opinions.service.ts   # Validasi Siklus Opini Dosen (Per Mahasiswa) & Mahasiswa (Mandiri)
 │   ├── threads/                  # Forum Interaksi Terstruktur (Q -> A -> F -> R)
 │   │   ├── dto/                  # CreateThreadDto, CreateMessageDto
 │   │   ├── threads.controller.ts # Siklus Diskusi & Pelacakan Kepatuhan Respon Mahasiswa
-│   │   └── threads.service.ts    # Enforcing Sequential Lifecycle & Room Dispatching
+│   │   ├── threads.service.ts    # Enforcing Sequential Lifecycle, Auto-Close & Privacy Filtering
+│   │   └── threads.service.spec.ts # 8 Skenario Pengujian Unit
 │   ├── users/                    # Manajemen Pengguna & Administrator Console
 │   │   ├── dto/                  # CreateUserDto, ResetPasswordDto
 │   │   ├── users.controller.ts   # CRUD Pengguna & Bulk Import CSV
@@ -81,7 +82,7 @@ Sistem menerapkan prinsip **Role-Based Access Control (RBAC)** dan isolasi data 
 | Fitur / Domain API | Role ADMIN (Peneliti) | Role LECTURER (Dosen) | Role STUDENT (Mahasiswa) |
 |---|:---:|:---:|:---:|
 | **Manajemen Pengguna & Bulk Import CSV** | Penuh (Read, Create, Reset Password) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
-| **Ekspor Dataset 15 Kolom & Labeling NLP** | Penuh (Akses Eksklusif) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
+| **Ekspor Dataset 18 Label & Labeling NLP** | Penuh (Akses Eksklusif) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
 | **Pengaturan Sistem Institusi (Settings)** | Penuh (Read & Update) | Ditolak (403 Forbidden) | Ditolak (403 Forbidden) |
 | **Penyusunan RPS & Modul Materi** | Penuh | Penuh (Kelas Ampuan) | Read-Only (Tandai Selesai) |
 | **Jadwal Kuliah Virtual (Meet / Zoom)** | Penuh | Penuh (Jadwalkan Sesi) | Read & Akses Tautan |
@@ -89,6 +90,7 @@ Sistem menerapkan prinsip **Role-Based Access Control (RBAC)** dan isolasi data 
 | **Mesin Kuis & Pembuat Soal Dinamis** | Penuh | Buat Paket Kuis & Soal | Kerjakan Kuis (Timer) |
 | **Buku Nilai & Early Warning System** | Penuh | Rekap Nilai & Status At-Risk | Transkrip Mandiri |
 | **Forum Diskusi ARJUNA (Q-A-F-R)** | Penuh | Buat Thread & Beri Feedback | Jawab Wajib & Beri Reaksi |
+| **Refleksi Pasca-Diskusi (Privat)** | Penuh | Menilai Tiap Mahasiswa Kelas | Mengisi Refleksi Sendiri |
 | **Siaran Pengumuman Kampus & Kelas** | Siaran Global & Kelas | Siaran Kelas Ampuan | Read-Only |
 
 ---
@@ -123,12 +125,13 @@ Sistem menerapkan prinsip **Role-Based Access Control (RBAC)** dan isolasi data 
 
 ### C. Forum Interaksi Terstruktur (`/api/threads`)
 - `GET /api/threads?course_id=...`: Mengambil daftar thread interaksi dalam kelas.
-- `GET /api/threads/:id`: Mengambil seluruh hierarki pesan thread (Pertanyaan, Jawaban, Feedback, Reaksi) beserta status kepatuhan respons mahasiswa.
+- `GET /api/threads/:id`: Mengambil seluruh hierarki pesan thread (Pertanyaan, Jawaban, Feedback, Reaksi) beserta status kepatuhan respons mahasiswa (dilengkapi role privacy filtering).
 - `POST /api/threads`: Membuat thread baru.
 - `POST /api/threads/:id/messages`: Mengirim pesan terstruktur (Answer, Feedback, atau Reaction).
+- `PATCH /api/threads/:id/close`: Menutup forum diskusi secara manual dan mengaktifkan mode refleksi/evaluasi.
 
 ### D. Dataset NLP ARJUNA-Net (`/api/datasets`)
-- `GET /api/datasets/export`: Mengunduh dataset interaksi 15 kolom dalam format CSV atau JSON.
+- `GET /api/datasets/export`: Mengunduh dataset interaksi 18 label dalam format CSV atau JSON.
 - `GET /api/datasets/compliance`: Memantau persentase kepatuhan respon mahasiswa per kelas secara real-time.
 - `POST /api/datasets/:threadId/labels`: Menyimpan anotasi kualitas interaksi, relevansi, sentimen, dan emosi (manual atau via model).
 
@@ -144,6 +147,7 @@ Sistem menerapkan prinsip **Role-Based Access Control (RBAC)** dan isolasi data 
 - **Daftar Event Siaran**:
   - `new_message`: Pesan baru masuk ke thread diskusi.
   - `student_answered`: Notifikasi saat mahasiswa menyelesaikan jawaban wajib.
+  - `thread:closed`: Notifikasi forum diskusi ditutup.
   - `compliance_updated`: Pembaruan status kepatuhan interaksi kelas.
   - `new_announcement`: Siaran pengumuman penting kepada sivitas akademika.
 
@@ -162,10 +166,11 @@ npm run test
 - **`RolesGuard` (`src/common/guards/roles.guard.spec.ts`)**: 6/6 PASSED (RBAC enforcement, route bypass, role isolation).
 - **`AuthService` (`src/auth/auth.service.spec.ts`)**: 6/6 PASSED (Argon2id hashing, JWT token lifecycle, validasi kredensial).
 - **`AcademicService` (`src/academic/academic.service.spec.ts`)**: 11/11 PASSED (RPS, modul, materi progress, Turnitin similarity calculation, quiz auto-grading, gradebook letter grade matrix, broadcast pengumuman, institutional settings).
-- **`DatasetsService` (`src/datasets/datasets.service.spec.ts`)**: 5/5 PASSED (Ekman 5-emotion classification, SSWE sentiment polarity, composite interaction quality calculation, 15-column dataset export).
+- **`ThreadsService` (`src/threads/threads.service.spec.ts`)**: 8/8 PASSED (Thread creation, message lifecycle, closed gates, compliance calculation, role privacy filtering).
+- **`DatasetsService` (`src/datasets/datasets.service.spec.ts`)**: 7/7 PASSED (Ekman 5-emotion classification, SSWE sentiment polarity, composite interaction quality calculation, 18-label dataset export, multi-turn dialogue extraction, ground-truth emotion isolation).
 - **`EventsGateway` (`src/events/events.gateway.spec.ts`)**: 4/4 PASSED (WebSocket handshake auth, room join/leave, live broadcast dispatching).
 
-**Total: 32/32 PASSED (100% Success Rate).**
+**Total: 42/42 PASSED (100% Success Rate).**
 
 ---
 
@@ -195,4 +200,5 @@ npm run seed
 npm run start:dev
 ```
 
-Server backend akan berjalan di `http://localhost:4000`. Dokumentasi OpenAPI/Swagger dapat diakses di `http://localhost:4000/api/docs` (jika diaktifkan).
+Server backend akan berjalan di `http://localhost:4000`.
+

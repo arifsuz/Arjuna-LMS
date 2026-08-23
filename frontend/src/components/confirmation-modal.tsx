@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Info,
@@ -37,17 +38,33 @@ export function ConfirmationModal({
   loading = false,
   hideCancel = false,
 }: ConfirmationModalProps) {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !loading) {
+      if (e.key === "Escape" && !loading) {
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    // Prevent background scrolling while modal is open
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalStyle;
+    };
   }, [isOpen, loading, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const variantStyles = {
     danger: {
@@ -83,8 +100,15 @@ export function ConfirmationModal({
   const style = variantStyles[variant];
   const IconComponent = style.icon;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      {/* Background overlay click */}
+      <div
+        className="fixed inset-0 -z-10"
+        onClick={() => {
+          if (!loading) onClose();
+        }}
+      />
       <div
         className={`glass-panel relative w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border ${style.border} animate-in zoom-in-95 duration-200`}
         role="dialog"
@@ -160,4 +184,6 @@ export function ConfirmationModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

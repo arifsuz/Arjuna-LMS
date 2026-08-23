@@ -7,21 +7,21 @@
   <img src="https://img.shields.io/badge/Database-PostgreSQL%2016-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="Postgres Badge" />
   <img src="https://img.shields.io/badge/Cache%20%26%20WS-Redis%207-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis Badge" />
   <img src="https://img.shields.io/badge/ORM-Prisma%207-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma Badge" />
-  <img src="https://img.shields.io/badge/QA%20Audit-32%2F32%20Unit%20Tests%20Passed-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="QA Audit Badge" />
+  <img src="https://img.shields.io/badge/QA%20Audit-42%2F42%20Unit%20Tests%20Passed-10B981?style=for-the-badge&logo=jest&logoColor=white" alt="QA Audit Badge" />
 </p>
 
 ---
 
 ## 1. Ringkasan Eksekutif & Konteks Riset
 
-**ARJUNA LMS** adalah platform Learning Management System (LMS) modern berstandar enterprise yang mengintegrasikan seluruh proses perkuliahan akademik dengan mesin pengumpulan data percakapan kelas terstruktur (*raw conversational datasets*) untuk kebutuhan riset kecerdasan buatan **ARJUNA-Net** (ekstraksi fitur semantik, klasifikasi sentimen SSWE, pengenalan emosi EWE 5-Classes, dan fusi relevansi kualitas interaksi).
+**ARJUNA LMS** adalah platform Learning Management System (LMS) modern berstandar enterprise yang mengintegrasikan seluruh proses perkuliahan akademik dengan mesin pengumpulan data percakapan kelas terstruktur (*raw conversational datasets*) untuk kebutuhan riset kecerdasan buatan **ARJUNA-Net** (ekstraksi fitur semantik, klasifikasi sentimen biner SSWE Dosen & Mahasiswa, pengenalan emosi EWE 5-Classes, dan fusi relevansi kualitas interaksi).
 
 ### Tujuan Utama Platform:
 1. **Ekosistem LMS Akademik Komprehensif**: Mengakomodasi kurikulum RPS/CPL, modul multimedia (PDF, Video, SCORM/H5P), perkuliahan virtual (Google Meet & Zoom), tugas kuliah terintegrasi Turnitin Similarity Index, mesin kuis interaktif dengan *Dynamic Question Builder*, buku nilai (*Gradebook Matrix* A–E), serta *Early Warning System* mahasiswa berisiko.
-2. **Siklus Interaksi Terstruktur (*ARJUNA Flow*)**:
+2. **Siklus Interaksi Multi-Turn Terstruktur (*ARJUNA Flow*)**:
    $$\text{Pertanyaan Dosen (Q)} \longrightarrow \text{Jawaban Mahasiswa (A, Wajib)} \longrightarrow \text{Umpan Balik Dosen (F)} \longrightarrow \text{Reaksi Mahasiswa (R)} \longrightarrow \text{Refleksi \& Emosi Opini}$$
-3. **Ekspor Dataset Terstandarisasi 15 Kolom**: Menyediakan pipeline ekspor data interaksi 1:1 format CSV/JSON yang siap digunakan langsung oleh model AI/NLP (BiLSTM, BERT, CNN, dan Decision Fusion).
-4. **Desain Berbasis Human-Computer Interaction (HCI)**: Memadukan estetika *Glassmorphism*, palet warna akademik eksklusif (*Deep Academic Blue* `#0A3266` & *Metallic Gold* `#C9A05C`), dermaga aksi cepat (*Fitts's Law*), pengelompokan menu kontekstual (*Hick's Law*), serta 100% ikonografi SVG tanpa penggunaan emoji mentah.
+3. **Ekspor Dataset Terstandarisasi 18 Kolom / Label**: Menyediakan pipeline ekspor data interaksi 1:1 format CSV/JSON yang siap digunakan langsung oleh model AI/NLP (BiLSTM, BERT, CNN, dan Decision Fusion).
+4. **Desain Berbasis Human-Computer Interaction (HCI)**: Memadukan estetika *Glassmorphism*, palet warna akademik eksklusif (*Deep Academic Blue* `#0A3266` & *Metallic Gold* `#C9A05C`), dermaga aksi cepat (*Fitts's Law*), pengelompokan menu kontekstual (*Hick's Law*), tampilan dialog berbasis React Portal viewport-centered, serta 100% ikonografi SVG tanpa penggunaan emoji mentah.
 
 ---
 
@@ -89,17 +89,17 @@ flowchart TB
 arjuna-lms/
 ├── backend/                     # Backend API & Real-Time Server (NestJS 11)
 │   ├── prisma/                  # Skema Database & Migrasi Prisma
-│   │   ├── schema.prisma        # Definisi 16 Model Data Relasional
+│   │   ├── schema.prisma        # Definisi 16 Model Data Relasional (Thread, Opinion, DatasetLabel)
 │   │   ├── seed.ts              # Script Seeding Data Awal Komprehensif
-│   │   └── seed.example.ts      # Template Seeding Mandiri
+│   │   └── seed.js              # Script Seeding JavaScript untuk Docker Production
 │   ├── src/
 │   │   ├── academic/            # Modul RPS, Modul, Meet, Tugas, Kuis, Nilai, Pengumuman, Settings
 │   │   ├── auth/                # Autentikasi JWT & Argon2id Hashing
 │   │   ├── common/              # Decorators, RolesGuard (RBAC), AuditInterceptor, PrismaService
 │   │   ├── courses/             # Manajemen Kelas & Enrollment
-│   │   ├── datasets/            # Ekspor Dataset CSV 15 Kolom & Anotasi NLP
+│   │   ├── datasets/            # Ekspor Dataset CSV 18 Kolom, Heuristik NLP & Multi-turn Processor
 │   │   ├── events/              # WebSocket Gateway & Real-Time Dispatcher
-│   │   ├── opinions/            # Refleksi Pasca-Diskusi (Sentimen & Emosi)
+│   │   ├── opinions/            # Refleksi & Evaluasi Per-Mahasiswa (Sentimen & Emosi)
 │   │   ├── threads/             # Forum Interaksi Terstruktur (Q -> A -> F -> R)
 │   │   ├── users/               # Manajemen Pengguna & Bulk Import CSV
 │   │   ├── app.module.ts        # Root Module NestJS
@@ -121,10 +121,11 @@ arjuna-lms/
 │   │   │   │   │   ├── page.tsx # Daftar Kelas (Grid/List) & Filter Kategori
 │   │   │   │   │   └── [courseId]/ # Workspace Ruang Kelas 7-Tab Terintegrasi
 │   │   │   │   │       ├── page.tsx # RPS, Forum, Meet, Tugas, Kuis, Nilai, Pengumuman
-│   │   │   │   │       └── threads/[threadId]/ # Ruang Diskusi Interaktif
-│   │   │   │   └── admin/       # Konsol Super Admin (Users, Courses, Dataset, Settings, Broadcast)
-│   │   ├── components/          # Komponen UI Reusable & Visualisasi Charts Kustom
+│   │   │   │   │       └── threads/[threadId]/ # Ruang Diskusi Interaktif (Single-Column Card)
+│   │   │   │   └── admin/       # Konsol Super Admin (Users, Courses, Dataset Studio 18 Kolom)
+│   │   ├── components/          # Komponen UI Reusable, Portal ConfirmationModal, Charts Kustom
 │   │   │   ├── charts/          # BarChart, DonutChart, StatGauge
+│   │   │   ├── confirmation-modal.tsx # Portal-based Dialog Center
 │   │   │   └── theme-toggle.tsx # Pengalih Tema Gelap / Terang Adaptif
 │   │   └── lib/                 # API Client, AuthContext, ThemeContext, Socket Manager
 │   ├── Dockerfile               # Multi-stage Docker Build Frontend
@@ -135,7 +136,7 @@ arjuna-lms/
 ├── docker-compose.prod.yml      # Orkestrasi Docker Produksi (Dokploy / VPS)
 ├── DOKPLOY_DEPLOYMENT_GUIDE.md  # Panduan Lengkap Deployment Produksi & SSL
 ├── ISSUES_TRACKER.md            # Log Pelacakan Isu & Riwayat Audit
-├── QA_UNIT_TEST_TRACKRECORD.md  # Catatan Resmi Audit Pengujian Unit (32/32 Passed)
+├── QA_UNIT_TEST_TRACKRECORD.md  # Catatan Resmi Audit Pengujian Unit (42/42 Passed)
 ├── prd.md                       # Product Requirement Document (PRD)
 └── README.md                    # Dokumentasi Proyek Terpusat
 ```
@@ -147,45 +148,49 @@ arjuna-lms/
 | Modul / Fitur Sistem | Super Admin (Peneliti) | Dosen Pengampu | Mahasiswa |
 |---|:---:|:---:|:---:|
 | **Manajemen Pengguna & Bulk CSV** | Penuh (Buat, Reset, Impor) | Ditolak (403) | Ditolak (403) |
-| **Ekspor Dataset 15 Kolom & Labeling NLP** | Penuh (Akses Eksklusif) | Ditolak (403) | Ditolak (403) |
+| **Ekspor Dataset 18 Label & Studio Labeling** | Penuh (Akses Eksklusif) | Ditolak (403) | Ditolak (403) |
 | **Konfigurasi Pengaturan Institusi** | Penuh (Ubah Nama, Batas Nilai) | Ditolak (403) | Ditolak (403) |
 | **Penyusunan RPS & Modul Multimedia** | Penuh | Penuh (Kelas Ampuan) | Read & Tandai Selesai |
 | **Jadwal Kuliah Virtual (Meet/Zoom)** | Penuh | Jadwalkan & Kelola Sesi | Akses Tautan Pertemuan |
 | **Pusat Tugas & Turnitin Similarity** | Penuh | Buat Tugas & Beri Nilai | Kumpulkan Tugas Mandiri |
 | **Mesin Kuis & Pembuat Soal Dinamis** | Penuh | Buat Paket Kuis & Soal | Kerjakan Kuis (Timer) |
 | **Buku Nilai & Early Warning Matrix** | Penuh | Rekap Kelas & Deteksi At-Risk | Transkrip Mandiri |
-| **Forum Diskusi Interaktif (Q-A-F-R)** | Penuh | Buat Thread & Feedback | Jawab Wajib & Reaksi |
+| **Forum Diskusi Interaktif (Q-A-F-R)** | Penuh | Buat Topik & Feedback Balasan | Jawab Wajib & Reaksi |
+| **Evaluasi Pasca-Diskusi (Privat)** | Penuh | Menilai Tiap Mahasiswa Kelas | Mengisi Refleksi Sendiri |
 | **Pusat Siaran Pengumuman Kampus** | Siaran Global & Kelas | Siaran Kelas Ampuan | Membaca Pengumuman |
 
 ---
 
-## 5. Spesifikasi Ekspor Dataset ARJUNA-Net (15 Kolom)
+## 5. Spesifikasi Ekspor Dataset ARJUNA-Net (18 Label / Kolom Terstandarisasi)
 
 Dataset diekspor melalui endpoint `GET /api/datasets/export` dalam format CSV atau JSON dengan pemetaan skema kolom terstandarisasi:
 
-| No | Nama Kolom | Tipe Data | Sumber Data LMS | Deskripsi Komputasi |
+| No | Nama Kolom / Label | Tipe Data | Sumber Data LMS | Deskripsi Komputasi & Prioritas |
 |---|---|---|---|---|
-| 1 | `Course_ID` | String | `Course.id` | Pengenal unik mata kuliah |
-| 2 | `Lecturer_ID` | String | `Course.lecturer_id` | Pengenal unik dosen pengampu |
-| 3 | `Student_ID` | String | `Enrollment.student_id` | Pengenal unik mahasiswa responden |
-| 4 | `Lecturer_Question` | Text | `ThreadMessage (QUESTION)` | Teks pertanyaan pemantik dari dosen |
-| 5 | `Student_Answer` | Text | `ThreadMessage (ANSWER)` | Teks jawaban mahasiswa |
-| 6 | `Lecturer_Feedback` | Text | `ThreadMessage (FEEDBACK)` | Teks umpan balik korektif/apresiatif dosen |
-| 7 | `Student_Reaction` | Text | `ThreadMessage (REACTION)` | Teks respons/tanggapan balik mahasiswa |
-| 8 | `Student_Opinion` | Text | `Opinion (author: STUDENT)` | Refleksi kualitatif mahasiswa pasca-interaksi |
-| 9 | `Q-A_Relevance` | Float (0.0 - 1.0) | `DatasetLabel.qa_relevance` | Skor relevansi semantik Pertanyaan vs Jawaban |
-| 10 | `A-F_Relevance` | Float (0.0 - 1.0) | `DatasetLabel.af_relevance` | Skor relevansi semantik Jawaban vs Feedback |
-| 11 | `Feedback_Novelty` | Float (0.0 - 1.0) | `DatasetLabel.feedback_novelty` | Skor kebaruan/ekspansi materi dalam feedback |
-| 12 | `Student_Sentiment` | String | `DatasetLabel.student_sentiment` | Polaritas sentimen mahasiswa (`Positif` / `Negatif`) |
-| 13 | `Student_Emotion` | String | `DatasetLabel.student_emotion` | Klasifikasi emosi mahasiswa (EWE 5-Classes) |
-| 14 | `Lecturer_Emotion` | String | `DatasetLabel.lecturer_emotion` | Klasifikasi emosi dosen (EWE 5-Classes) |
-| 15 | `Interaction_Quality`| Float (0.0 - 1.0) | `DatasetLabel.interaction_quality` | Skor agregat mutu interaksi ($\alpha QA + \beta AF + \gamma FN$) |
+| 1 | `Log` | Text | Sistem Log Generator | Timestamp `[YYYY-MM-DD HH:mm:ss]`, Judul Thread, Partisipan |
+| 2 | `Course_ID` | String | `Course.code` / `Course.name` | Kode mata kuliah (contoh: `IF-303`) |
+| 3 | `Lecturer_ID` | String | `Course.lecturer.name` | Nama dosen pengampu mata kuliah |
+| 4 | `Student_ID` | String | `User.name (Role: STUDENT)` | Nama mahasiswa responden |
+| 5 | `Lecturer_Question` | Text | `ThreadMessage (QUESTION)` | Teks pertanyaan topik dosen (Level 1) |
+| 6 | `Student_Answer` | Text | `ThreadMessage (ANSWER)` | Teks jawaban mahasiswa (Level 2 / Turn N) |
+| 7 | `Lecturer_Feedback` | Text | `ThreadMessage (FEEDBACK/REPLY)` | Teks umpan balik korektif/apresiatif dosen |
+| 8 | `Student_Reaction` | Text | `ThreadMessage (REACTION/REPLY)` | Teks respons/tanggapan balik mahasiswa |
+| 9 | `Lecturer_Opinion` | Text | `Opinion (Dosen -> Mahasiswa)` | Catatan kualitatif dosen per individu mahasiswa |
+| 10 | `Student_Opinion` | Text | `Opinion (Mahasiswa)` | Refleksi kualitatif mandiri mahasiswa pasca-diskusi |
+| 11 | `Q-A_Relevance` | Float (0.00 - 1.00) | `DatasetLabel / Auto NLP` | Skor relevansi semantik Pertanyaan vs Jawaban |
+| 12 | `A-F_Relevance` | Float (0.00 - 1.00) | `DatasetLabel / Auto NLP` | Skor relevansi semantik Jawaban vs Feedback |
+| 13 | `Feedback_Novalty` | Float (0.00 - 1.00) | `DatasetLabel / Auto NLP` | Skor kebaruan/ekspansi materi dalam feedback |
+| 14 | `Lecturer_Sentiment` | String | `Opinion / Auto NLP` | Polaritas sentimen dosen (`Positif` / `Negatif`) |
+| 15 | `Student_Sentiment` | String | `Opinion / Auto NLP` | Polaritas sentimen mahasiswa (`Positif` / `Negatif`) |
+| 16 | `Lecturer_Emotion` | String | `Opinion / Auto NLP` | Klasifikasi emosi dosen (`Happiness`, `Anger`, `Fear`, `Disgust`, `Sadness`) |
+| 17 | `Student_Emotion` | String | `Opinion / Auto NLP` | Klasifikasi emosi mahasiswa (`Happiness`, `Anger`, `Fear`, `Disgust`, `Sadness`) |
+| 18 | `Interaction_Quality`| Float (0.00 - 1.00) | `DatasetLabel / Auto NLP` | Skor agregat mutu interaksi ($\alpha QA + \beta AF + \gamma FN + \text{Bonus}$) |
 
 ---
 
 ## 6. Jaminan Mutu & Audit Pengujian Unit (Unit Testing Suite)
 
-Sistem ARJUNA LMS telah diaudit secara menyeluruh dengan **32/32 skenario pengujian unit otomatis** (Tingkat Keberhasilan **100%**):
+Sistem ARJUNA LMS telah diaudit secara menyeluruh dengan **42/42 skenario pengujian unit otomatis** (Tingkat Keberhasilan **100%**):
 
 ```bash
 cd backend
@@ -196,7 +201,8 @@ npm run test
 * **Keamanan & Otorisasi RBAC (`roles.guard.spec.ts`)**: 6/6 Skenario Lulus
 * **Autentikasi & Kriptografi Argon2id (`auth.service.spec.ts`)**: 6/6 Skenario Lulus
 * **Logika Akademik & Evaluasi (`academic.service.spec.ts`)**: 11/11 Skenario Lulus
-* **Pemrosesan Dataset & Heuristik NLP (`datasets.service.spec.ts`)**: 5/5 Skenario Lulus
+* **Pemrosesan Dataset & Heuristik NLP (`datasets.service.spec.ts`)**: 7/7 Skenario Lulus (Termasuk Multi-turn Extraction & Ground-Truth Emotion Isolation)
+* **Logika Forum & Thread Real-Time (`threads.service.spec.ts`)**: 8/8 Skenario Lulus
 * **Gateway WebSocket Real-Time (`events.gateway.spec.ts`)**: 4/4 Skenario Lulus
 
 Laporan audit pengujian unit resmi dapat diakses pada dokumen:

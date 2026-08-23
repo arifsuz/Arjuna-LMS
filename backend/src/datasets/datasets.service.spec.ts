@@ -194,9 +194,10 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
         'Q-A_Relevance',
         'A-F_Relevance',
         'Feedback_Novalty',
+        'Lecturer_Sentiment',
         'Student_Sentiment',
-        'Student_Emotion',
         'Lecturer_Emotion',
+        'Student_Emotion',
         'Interaction_Quality',
       ];
 
@@ -212,7 +213,9 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
 
       // Verify emotion and sentiment validity
       expect(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness']).toContain(firstRow.Student_Emotion);
+      expect(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness']).toContain(firstRow.Lecturer_Emotion);
       expect(['Positif', 'Negatif']).toContain(firstRow.Student_Sentiment);
+      expect(['Positif', 'Negatif']).toContain(firstRow.Lecturer_Sentiment);
     });
 
     it('TC-DATA-006: Should capture Lecturer_Feedback whenever lecturer sends a discussion message other than QUESTION', async () => {
@@ -276,6 +279,246 @@ describe('DatasetsService Unit Test (ARJUNA-Net ML Dataset & NLP Annotation Pipe
       expect(targetRow?.Lecturer_Feedback).toBe(
         'Hebat, penurunan rumus chain rule sangat penting diperhatikan.',
       );
+    });
+
+    it('TC-DATA-007: Should accurately extract multi-turn reaction chains across multiple levels (Turn 1 -> Turn 2)', async () => {
+      prisma.thread.findMany.mockResolvedValue([
+        {
+          id: 'thread-multiturn',
+          title: 'Pemahaman Konsep Project',
+          courseId: 'course-cp',
+          course: {
+            code: 'IF-303',
+            name: 'Capstone Project',
+            lecturerId: 'dosen-cp',
+            lecturer: { id: 'dosen-cp', name: 'Dr. Hendra', email: 'hendra@arjuna-lms.ac.id' },
+            enrollments: [
+              {
+                student: { id: 'mhs-arif', name: 'Arif', email: 'arif@arjuna-lms.ac.id' },
+              },
+            ],
+          },
+          initiator: { id: 'dosen-cp', name: 'Dr. Hendra', role: 'LECTURER' },
+          messages: [
+            // Level 1: Topic Dosen
+            {
+              id: 'm-lvl1',
+              type: 'QUESTION',
+              authorId: 'dosen-cp',
+              author: { id: 'dosen-cp', name: 'Dr. Hendra', role: 'LECTURER' },
+              body: 'Berikan pemahaman tentang capstone project ya...',
+              parentMessageId: null,
+              createdAt: new Date('2026-08-23T10:00:00Z'),
+            },
+            // Level 2: Student Answer
+            {
+              id: 'm-lvl2',
+              type: 'ANSWER',
+              authorId: 'mhs-arif',
+              author: { id: 'mhs-arif', name: 'Arif', role: 'STUDENT' },
+              body: 'yang saya tau nanti cp berkelompok pak',
+              parentMessageId: 'm-lvl1',
+              createdAt: new Date('2026-08-23T10:05:00Z'),
+            },
+            // Level 3: Dosen Feedback
+            {
+              id: 'm-lvl3',
+              type: 'FEEDBACK',
+              authorId: 'dosen-cp',
+              author: { id: 'dosen-cp', name: 'Dr. Hendra', role: 'LECTURER' },
+              body: 'iya bener',
+              parentMessageId: 'm-lvl2',
+              createdAt: new Date('2026-08-23T10:10:00Z'),
+            },
+            // Level 4: Student Reaction / Follow-up Query
+            {
+              id: 'm-lvl4',
+              type: 'REACTION',
+              authorId: 'mhs-arif',
+              author: { id: 'mhs-arif', name: 'Arif', role: 'STUDENT' },
+              body: 'bisa request dosen pembimbing pak?',
+              parentMessageId: 'm-lvl3',
+              createdAt: new Date('2026-08-23T10:15:00Z'),
+            },
+            // Level 5: Dosen Feedback 2
+            {
+              id: 'm-lvl5',
+              type: 'FEEDBACK',
+              authorId: 'dosen-cp',
+              author: { id: 'dosen-cp', name: 'Dr. Hendra', role: 'LECTURER' },
+              body: 'gabisa rif',
+              parentMessageId: 'm-lvl4',
+              createdAt: new Date('2026-08-23T10:20:00Z'),
+            },
+            // Level 6: Student Reaction 2
+            {
+              id: 'm-lvl6',
+              type: 'REACTION',
+              authorId: 'mhs-arif',
+              author: { id: 'mhs-arif', name: 'Arif', role: 'STUDENT' },
+              body: 'baik pak',
+              parentMessageId: 'm-lvl5',
+              createdAt: new Date('2026-08-23T10:25:00Z'),
+            },
+          ],
+          opinions: [
+            {
+              authorId: 'dosen-cp',
+              authorRole: 'LECTURER',
+              targetStudentId: 'mhs-arif',
+              opinionText: 'Arif sangat aktif bertanya dalam forum.',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+            {
+              authorId: 'mhs-arif',
+              authorRole: 'STUDENT',
+              opinionText: 'Penjelasan dosen sangat jelas.',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+          ],
+          labels: [],
+        },
+      ]);
+
+      const rows: DatasetRow[] = await service.buildDatasetRows({});
+      expect(rows).toHaveLength(2);
+
+      // Turn 1: Level 1-4
+      const row1 = rows[0];
+      expect(row1.Student_Answer).toBe('yang saya tau nanti cp berkelompok pak');
+      expect(row1.Lecturer_Feedback).toBe('iya bener');
+      expect(row1.Student_Reaction).toBe('bisa request dosen pembimbing pak?');
+      expect(row1.Lecturer_Opinion).toBe('Arif sangat aktif bertanya dalam forum.');
+      expect(row1.Student_Opinion).toBe('Penjelasan dosen sangat jelas.');
+
+      // Turn 2: Level 4-6
+      const row2 = rows[1];
+      expect(row2.Student_Answer).toBe('bisa request dosen pembimbing pak?');
+      expect(row2.Lecturer_Feedback).toBe('gabisa rif');
+      expect(row2.Student_Reaction).toBe('baik pak');
+      expect(row2.Lecturer_Opinion).toBe('Arif sangat aktif bertanya dalam forum.');
+      expect(row2.Student_Opinion).toBe('Penjelasan dosen sangat jelas.');
+    });
+
+    it('TC-DATA-008: Should preserve individual student and lecturer affective labels (Happiness vs Fear) and auto-infer for students without inputs', async () => {
+      prisma.thread.findMany.mockResolvedValue([
+        {
+          id: 'thread-affective-test',
+          title: 'Diskusi Proyek Akhir',
+          courseId: 'course-ai',
+          course: {
+            code: 'IF-404',
+            name: 'Kecerdasan Buatan',
+            lecturerId: 'dosen-sulis',
+            lecturer: { id: 'dosen-sulis', name: 'Sulis Sandiwarno', email: 'sulis@arjuna-lms.ac.id' },
+            enrollments: [],
+          },
+          initiator: { id: 'dosen-sulis', name: 'Sulis Sandiwarno', role: 'LECTURER' },
+          messages: [
+            {
+              id: 'q-root',
+              type: 'QUESTION',
+              authorId: 'dosen-sulis',
+              author: { id: 'dosen-sulis', name: 'Sulis Sandiwarno', role: 'LECTURER' },
+              body: 'Jelaskan arsitektur CNN!',
+              parentMessageId: null,
+              createdAt: new Date(),
+            },
+            // Student 1: Arif (Happiness)
+            {
+              id: 'a-arif',
+              type: 'ANSWER',
+              authorId: 'mhs-arif',
+              author: { id: 'mhs-arif', name: 'Arif', role: 'STUDENT' },
+              body: 'CNN terdiri dari convolutional layer dan pooling layer.',
+              parentMessageId: 'q-root',
+              createdAt: new Date(),
+            },
+            // Student 2: Rehan (Fear)
+            {
+              id: 'a-rehan',
+              type: 'ANSWER',
+              authorId: 'mhs-rehan',
+              author: { id: 'mhs-rehan', name: 'Rehan', role: 'STUDENT' },
+              body: 'Saya masih ragu dan takut salah dengan stride dan padding.',
+              parentMessageId: 'q-root',
+              createdAt: new Date(),
+            },
+            // Student 3: Firaz (No opinion input - auto infer)
+            {
+              id: 'a-firaz',
+              type: 'ANSWER',
+              authorId: 'mhs-firaz',
+              author: { id: 'mhs-firaz', name: 'Firaz', role: 'STUDENT' },
+              body: 'CNN sangat bermanfaat dan menarik dipelajari.',
+              parentMessageId: 'q-root',
+              createdAt: new Date(),
+            },
+          ],
+          opinions: [
+            // Lecturer evaluations per student
+            {
+              authorId: 'dosen-sulis',
+              authorRole: 'LECTURER',
+              targetStudentId: 'mhs-arif',
+              opinionText: 'Keren',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+            {
+              authorId: 'dosen-sulis',
+              authorRole: 'LECTURER',
+              targetStudentId: 'mhs-rehan',
+              opinionText: 'sangat baik',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+            // Student 1 input
+            {
+              authorId: 'mhs-arif',
+              authorRole: 'STUDENT',
+              opinionText: 'sanghatv menarikl',
+              sentiment: 'Positif',
+              emotion: 'Happiness',
+            },
+            // Student 2 input (Fear)
+            {
+              authorId: 'mhs-rehan',
+              authorRole: 'STUDENT',
+              opinionText: 'sangat membantu',
+              sentiment: 'Positif',
+              emotion: 'Fear',
+            },
+            // Student 3 (Firaz) did not submit an opinion
+          ],
+          labels: [],
+        },
+      ]);
+
+      const rows: DatasetRow[] = await service.buildDatasetRows({});
+      expect(rows).toHaveLength(3);
+
+      const arifRow = rows.find((r) => r.Student_ID === 'Arif');
+      expect(arifRow).toBeDefined();
+      expect(arifRow?.Student_Emotion).toBe('Happiness');
+      expect(arifRow?.Student_Sentiment).toBe('Positif');
+      expect(arifRow?.Lecturer_Emotion).toBe('Happiness');
+      expect(arifRow?.Lecturer_Opinion).toBe('Keren');
+      expect(arifRow?.Student_Opinion).toBe('sanghatv menarikl');
+
+      const rehanRow = rows.find((r) => r.Student_ID === 'Rehan');
+      expect(rehanRow).toBeDefined();
+      expect(rehanRow?.Student_Emotion).toBe('Fear');
+      expect(rehanRow?.Student_Sentiment).toBe('Positif');
+      expect(rehanRow?.Lecturer_Emotion).toBe('Happiness');
+      expect(rehanRow?.Lecturer_Opinion).toBe('sangat baik');
+
+      const firazRow = rows.find((r) => r.Student_ID === 'Firaz');
+      expect(firazRow).toBeDefined();
+      expect(firazRow?.Student_Emotion).toBe('Happiness'); // Auto-inferred, not polluted with Fear
+      expect(firazRow?.Student_Sentiment).toBe('Positif');
     });
   });
 });

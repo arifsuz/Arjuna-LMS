@@ -14,4 +14,8 @@ export class CreateOpinionDto {
   @IsString()
   @IsIn(['Happiness', 'Anger', 'Fear', 'Disgust', 'Sadness', 'Neutral', 'Supportive', ''])
   emotion?: string;
+
+  @IsOptional()
+  @IsString()
+  targetStudentId?: string;
 }

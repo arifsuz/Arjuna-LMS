@@ -227,6 +227,9 @@ export class ThreadsService {
             author: {
               select: { id: true, name: true, role: true },
             },
+            targetStudent: {
+              select: { id: true, name: true, role: true },
+            },
           },
         },
       },
@@ -277,6 +280,9 @@ export class ThreadsService {
               author: {
                 select: { id: true, name: true, role: true },
               },
+              targetStudent: {
+                select: { id: true, name: true, role: true },
+              },
             },
           },
         },
@@ -286,35 +292,46 @@ export class ThreadsService {
       this.eventsGateway.emitToCourse(thread.courseId, 'thread:closed', { threadId });
     }
 
-    // Get compliance data for lecturer-initiated threads
-    let compliance = null;
-    if (thread.initiatorRole === Role.LECTURER) {
-      const enrollments = await this.prisma.enrollment.findMany({
-        where: { courseId: thread.courseId },
-        include: {
-          student: {
-            select: { id: true, name: true },
-          },
+    // Get compliance & enrolled students data for lecturer / participant evaluation
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { courseId: thread.courseId },
+      include: {
+        student: {
+          select: { id: true, name: true, email: true },
         },
-      });
+      },
+    });
 
-      const answers = thread.messages.filter(
-        (m) => m.type === MessageType.ANSWER,
+    const answers = thread.messages.filter(
+      (m) => m.type === MessageType.ANSWER,
+    );
+    const answeredIds = new Set(answers.map((a) => a.author.id));
+
+    const compliance = {
+      total: enrollments.length,
+      answered: answeredIds.size,
+      students: enrollments.map((e) => ({
+        id: e.student.id,
+        name: e.student.name,
+        email: e.student.email,
+        hasAnswered: answeredIds.has(e.student.id),
+      })),
+    };
+
+    // Privacy filtering for opinions:
+    // - Dosen only sees evaluations they authored for students
+    // - Student only sees their own reflection
+    // - Admin can see all for monitoring
+    let filteredOpinions = thread.opinions || [];
+    if (userRole === Role.STUDENT) {
+      filteredOpinions = (thread.opinions || []).filter((o) => o.authorId === userId);
+    } else if (userRole === Role.LECTURER) {
+      filteredOpinions = (thread.opinions || []).filter(
+        (o) => o.authorId === userId || o.authorRole === Role.LECTURER,
       );
-      const answeredIds = new Set(answers.map((a) => a.author.id));
-
-      compliance = {
-        total: enrollments.length,
-        answered: answeredIds.size,
-        students: enrollments.map((e) => ({
-          id: e.student.id,
-          name: e.student.name,
-          hasAnswered: answeredIds.has(e.student.id),
-        })),
-      };
     }
 
-    return { ...thread, compliance };
+    return { ...thread, opinions: filteredOpinions, compliance };
   }
 
   /**
@@ -461,20 +478,6 @@ export class ThreadsService {
       thread.course.lecturerId !== userId
     ) {
       throw new ForbiddenException('Hanya dosen kelas ini atau admin yang bisa menutup thread');
-    }
-
-    // Validate mandatory opinion: lecturer must fill opinion before manually closing thread
-    const lecturerOpinion = await this.prisma.opinion.findFirst({
-      where: {
-        threadId,
-        authorRole: Role.LECTURER,
-      },
-    });
-
-    if (!lecturerOpinion || !lecturerOpinion.opinionText || lecturerOpinion.opinionText.trim().length === 0) {
-      throw new BadRequestException(
-        'Dosen wajib mengisi form Refleksi & Opini terlebih dahulu sebelum dapat menutup forum diskusi ini secara manual.',
-      );
     }
 
     const updated = await this.prisma.thread.update({

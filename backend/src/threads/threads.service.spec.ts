@@ -254,39 +254,26 @@ describe('ThreadsService Unit Test (Forum Auto-Expiration & Role-Based Replies)'
     });
   });
 
-  describe('closeThread (Mandatory Opinion Validation for Manual Close)', () => {
-    it('TC-THREAD-007: Should reject closing thread manually if Lecturer has not filled opinion', async () => {
+  describe('closeThread (Manual Close by Lecturer)', () => {
+    it('TC-THREAD-007: Should reject closing thread if user is not course lecturer or admin', async () => {
       prisma.thread.findUnique.mockResolvedValue({
         id: 'thread-1',
         courseId: 'course-1',
         status: ThreadStatus.OPEN,
         course: { lecturerId: 'dosen-1' },
       });
-      // Mock opinion finding: empty or not found
-      if (!prisma.opinion) prisma.opinion = { findFirst: jest.fn() };
-      prisma.opinion.findFirst = jest.fn().mockResolvedValue(null);
 
       await expect(
-        service.closeThread('thread-1', 'dosen-1', Role.LECTURER),
-      ).rejects.toThrow(
-        new BadRequestException(
-          'Dosen wajib mengisi form Refleksi & Opini terlebih dahulu sebelum dapat menutup forum diskusi ini secara manual.',
-        ),
-      );
+        service.closeThread('thread-1', 'dosen-2', Role.LECTURER),
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('TC-THREAD-008: Should successfully close thread manually if Lecturer opinion is filled', async () => {
+    it('TC-THREAD-008: Should successfully close thread manually by lecturer', async () => {
       prisma.thread.findUnique.mockResolvedValue({
         id: 'thread-1',
         courseId: 'course-1',
         status: ThreadStatus.OPEN,
         course: { lecturerId: 'dosen-1' },
-      });
-      if (!prisma.opinion) prisma.opinion = { findFirst: jest.fn() };
-      prisma.opinion.findFirst = jest.fn().mockResolvedValue({
-        id: 'op-1',
-        authorRole: Role.LECTURER,
-        opinionText: 'Refleksi pembelajaran selesai dengan baik.',
       });
       prisma.thread.update.mockResolvedValue({
         id: 'thread-1',
@@ -296,6 +283,7 @@ describe('ThreadsService Unit Test (Forum Auto-Expiration & Role-Based Replies)'
       const result = await service.closeThread('thread-1', 'dosen-1', Role.LECTURER);
       expect(result.status).toBe(ThreadStatus.CLOSED);
       expect(prisma.thread.update).toHaveBeenCalled();
+      expect(eventsGateway.emitToThread).toHaveBeenCalledWith('thread-1', 'thread:closed', { threadId: 'thread-1' });
     });
   });
 });

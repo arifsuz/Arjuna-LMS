@@ -51,11 +51,13 @@ export class OpinionsService {
       }
     }
 
-    // Check if user already submitted an opinion on this thread
+    // Check if user already submitted an opinion on this thread for the target student (or self)
+    const targetStudentId = dto.targetStudentId || null;
     const existing = await this.prisma.opinion.findFirst({
       where: {
         threadId,
         authorId: userId,
+        targetStudentId,
       },
     });
 
@@ -72,6 +74,9 @@ export class OpinionsService {
           author: {
             select: { id: true, name: true, role: true },
           },
+          targetStudent: {
+            select: { id: true, name: true, role: true },
+          },
         },
       });
     } else {
@@ -80,6 +85,7 @@ export class OpinionsService {
           threadId,
           authorId: userId,
           authorRole: userRole,
+          targetStudentId,
           opinionText: dto.opinionText || '',
           sentiment: dto.sentiment || null,
           emotion: dto.emotion || null,
@@ -88,41 +94,11 @@ export class OpinionsService {
           author: {
             select: { id: true, name: true, role: true },
           },
+          targetStudent: {
+            select: { id: true, name: true, role: true },
+          },
         },
       });
-    }
-
-    // Sync ground truth affective labels into dataset_labels
-    if (dto.sentiment || dto.emotion) {
-      const existingLabel = await this.prisma.datasetLabel.findFirst({
-        where: { threadId },
-        orderBy: { labeledAt: 'desc' },
-      });
-
-      const labelData: any = {};
-      if (userRole === Role.STUDENT) {
-        if (dto.sentiment) labelData.studentSentiment = dto.sentiment;
-        if (dto.emotion) labelData.studentEmotion = dto.emotion;
-      } else {
-        if (dto.sentiment) labelData.lecturerSentiment = dto.sentiment;
-        if (dto.emotion) labelData.lecturerEmotion = dto.emotion;
-      }
-
-      if (existingLabel) {
-        await this.prisma.datasetLabel.update({
-          where: { id: existingLabel.id },
-          data: labelData,
-        });
-      } else {
-        await this.prisma.datasetLabel.create({
-          data: {
-            threadId,
-            ...labelData,
-            source: LabelSource.MANUAL,
-            labeledAt: new Date(),
-          },
-        });
-      }
     }
 
     // Real-time broadcast
@@ -141,10 +117,20 @@ export class OpinionsService {
       throw new NotFoundException('Thread tidak ditemukan');
     }
 
+    const where: any = { threadId };
+    if (userRole === Role.STUDENT) {
+      where.authorId = userId;
+    } else if (userRole === Role.LECTURER) {
+      where.authorId = userId;
+    }
+
     return this.prisma.opinion.findMany({
-      where: { threadId },
+      where,
       include: {
         author: {
+          select: { id: true, name: true, role: true },
+        },
+        targetStudent: {
           select: { id: true, name: true, role: true },
         },
       },

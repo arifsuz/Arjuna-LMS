@@ -92,15 +92,17 @@ frontend/src/
 ### C. Peran Super Admin (Peneliti)
 - **Tata Kelola Pengguna**: Menambah, mencari, mereset kata sandi, serta mengimpor ratusan akun dosen/mahasiswa melalui file CSV secara massal.
 - **Tata Kelola Kelas**: Membuka kelas baru, menetapkan dosen pengampu, dan mendaftarkan mahasiswa.
-- **Eksplorasi & Ekspor Dataset 15 Kolom**: Mengunduh dataset interaksi lengkap dalam format CSV/JSON untuk pelatihan model NLP.
-- **Anotasi Data NLP Interaktif**: Melakukan pelabelan data relevansi pertanyaan-jawaban, kebaruan feedback, sentimen, dan emosi secara manual atau semi-otomatis.
+- **Eksplorasi & Ekspor Dataset 18 Label**: Mengunduh dataset interaksi lengkap dalam format CSV/JSON untuk pelatihan model NLP.
+- **Anotasi Data NLP Interaktif**: Melakukan pelabelan data relevansi pertanyaan-jawaban, kebaruan feedback, sentimen dosen & mahasiswa, dan emosi secara manual atau semi-otomatis.
 - **Konfigurasi Institusi**: Mengatur nama kampus, batas waktu tugas, ambang batas Turnitin, dan parameter platform.
 
 ---
 
-## 5. Standar Desain & Iconography
+## 5. Standar Desain, Modal Dialog & Iconography
 
 * **100% SVG Iconography**: Menggunakan pustaka resmi **Lucide React SVG Icons**. Tidak ada penggunaan karakter emoji mentah pada antarmuka, menjaga tampilan tetap bersih, elegan, dan profesional.
+* **React Portal Viewport-Centered Modals**: Komponen `ConfirmationModal` dirender melalui `createPortal(..., document.body)` dengan backdrop `z-[99999]` dan penguncian scroll (`overflow: hidden`) otomatis pada `document.body` saat terbuka, memastikan dialog aksi konfirmasi langsung terlihat tepat di tengah pandangan mata pengguna tanpa perlu menggulir layar.
+* **Hierarki Percakapan Single-Column**: Struktur percakapan interaktif forum mengalir dalam satu kolom kontainer per jawaban mahasiswa, dengan lencana balasan kontekstual (`Menjawab pertanyaan Dosen`, `Membalas Arif`, dsb.) dan formulir evaluasi refleksi privat pasca-penutupan forum.
 * **Palet Warna Utama**:
   - `Academic Blue (#0A3266)`: Warna dasar wibawa akademik dan integritas data.
   - `Metallic Gold (#C9A05C)`: Warna aksen premium untuk elemen aktif, lencana prestasi, dan tombol utama.
@@ -137,3 +139,4 @@ npm run build
 ```
 
 Aplikasi web dapat diakses melalui browser pada `http://localhost:3000`.
+
