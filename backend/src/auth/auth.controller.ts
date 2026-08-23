@@ -100,6 +100,28 @@ export class AuthController {
     return undefined;
   }
 
+  /**
+   * Parse JWT expiry string (e.g. '15m', '1h', '7d') to milliseconds.
+   * Defaults provided as fallback if env var is not set.
+   */
+  private parseExpiryToMs(expiry: string, defaultMs: number): number {
+    if (!expiry) return defaultMs;
+
+    const match = expiry.match(/^(\d+)(s|m|h|d)$/);
+    if (!match) return defaultMs;
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    switch (unit) {
+      case 's': return value * 1000;
+      case 'm': return value * 60 * 1000;
+      case 'h': return value * 60 * 60 * 1000;
+      case 'd': return value * 24 * 60 * 60 * 1000;
+      default: return defaultMs;
+    }
+  }
+
   private setTokenCookies(
     res: Response,
     accessToken: string,
@@ -109,12 +131,21 @@ export class AuthController {
     const isProduction = process.env.NODE_ENV === 'production';
     const domain = this.getCookieDomain(req);
 
+    const accessExpiryMs = this.parseExpiryToMs(
+      process.env.JWT_ACCESS_EXPIRY || '15m',
+      15 * 60 * 1000, // default: 15 minutes
+    );
+    const refreshExpiryMs = this.parseExpiryToMs(
+      process.env.JWT_REFRESH_EXPIRY || '7d',
+      7 * 24 * 60 * 60 * 1000, // default: 7 days
+    );
+
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
       domain: domain || undefined,
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: accessExpiryMs,
       path: '/',
     });
 
@@ -123,7 +154,7 @@ export class AuthController {
       secure: isProduction,
       sameSite: 'lax',
       domain: domain || undefined,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: refreshExpiryMs,
       path: '/',
     });
   }
