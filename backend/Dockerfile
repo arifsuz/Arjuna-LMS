@@ -1,8 +1,8 @@
 # ─── Stage 1: Build ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-# Install build & runtime dependencies for Prisma and native modules
-RUN apk add --no-cache libc6-compat openssl python3 make g++
+# Install runtime dependencies for Prisma and native modules
+RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 

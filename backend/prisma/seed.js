@@ -11,7 +11,7 @@ if (typeof process.loadEnvFile === 'function') {
 const { PrismaClient, Role } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
-const argon2 = require('argon2');
+const { hash, Algorithm } = require('@node-rs/argon2');
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -33,8 +33,8 @@ async function main() {
 
   console.log(`[Seed] Menginisialisasi akun Super Admin untuk email: ${adminEmail}...`);
 
-  const passwordHash = await argon2.hash(adminPasswordPlain, {
-    type: argon2.argon2id,
+  const passwordHash = await hash(adminPasswordPlain, {
+    algorithm: Algorithm.Argon2id,
   });
 
   const admin = await prisma.user.upsert({

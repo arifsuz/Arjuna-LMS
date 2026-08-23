@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as argon2 from 'argon2';
+import { hash, verify, Algorithm } from '@node-rs/argon2';
 import { PrismaService } from '../common/prisma';
 import { LoginDto } from './dto';
 
@@ -37,7 +37,7 @@ export class AuthService {
       throw new UnauthorizedException('Email atau password salah');
     }
 
-    const passwordValid = await argon2.verify(user.passwordHash, dto.password);
+    const passwordValid = await verify(user.passwordHash, dto.password);
     if (!passwordValid) {
       throw new UnauthorizedException('Email atau password salah');
     }
@@ -93,8 +93,8 @@ export class AuthService {
   }
 
   async hashPassword(password: string): Promise<string> {
-    return argon2.hash(password, {
-      type: argon2.argon2id,
+    return hash(password, {
+      algorithm: Algorithm.Argon2id,
       memoryCost: 65536,
       timeCost: 3,
       parallelism: 4,

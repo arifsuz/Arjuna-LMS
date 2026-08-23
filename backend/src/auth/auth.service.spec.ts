@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import * as argon2 from 'argon2';
+import { hash, verify, Algorithm } from '@node-rs/argon2';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../common/prisma';
 import { Role } from '@prisma/client';
@@ -23,8 +23,8 @@ describe('AuthService Unit Test (Authentication & Security Layer)', () => {
   };
 
   beforeAll(async () => {
-    mockUser.passwordHash = await argon2.hash('admin123', {
-      type: argon2.argon2id,
+    mockUser.passwordHash = await hash('admin123', {
+      algorithm: Algorithm.Argon2id,
     });
   });
 
@@ -120,12 +120,12 @@ describe('AuthService Unit Test (Authentication & Security Layer)', () => {
 
   it('TC-AUTH-006: Should generate valid Argon2id password hash', async () => {
     const plain = 'studentStrongPassword!2026';
-    const hash = await service.hashPassword(plain);
+    const hashedPassword = await service.hashPassword(plain);
 
-    expect(hash).toBeDefined();
-    expect(hash.startsWith('$argon2id$')).toBe(true);
+    expect(hashedPassword).toBeDefined();
+    expect(hashedPassword.startsWith('$argon2id$')).toBe(true);
 
-    const isMatch = await argon2.verify(hash, plain);
+    const isMatch = await verify(hashedPassword, plain);
     expect(isMatch).toBe(true);
   });
 });
