@@ -101,8 +101,8 @@ export default function AdminCoursesPage() {
     try {
       const [coursesData, lecturersData, studentsData] = await Promise.all([
         coursesApi.listAll(),
-        usersApi.list({ role: "LECTURER" }),
-        usersApi.list({ role: "STUDENT" }),
+        usersApi.list({ role: "LECTURER", limit: "1000" }),
+        usersApi.list({ role: "STUDENT", limit: "1000" }),
       ]);
       const list = Array.isArray(coursesData) ? coursesData : [];
       setCourseList(list);
