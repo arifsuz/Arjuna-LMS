@@ -177,59 +177,138 @@ function CourseDetailContent() {
   const [newAnnounceContent, setNewAnnounceContent] = useState("");
   const [newAnnouncePriority, setNewAnnouncePriority] = useState("NORMAL");
 
-  const loadAll = useCallback(async () => {
+  const [loadedTabs, setLoadedTabs] = useState<Record<string, boolean>>({});
+
+  const loadCourseShell = useCallback(async () => {
     try {
-      const [
-        courseData,
-        threadsData,
-        modulesRes,
-        meetingsRes,
-        assignmentsRes,
-        quizzesRes,
-        announcementsRes,
-        groupsRes,
-      ] = await Promise.all([
-        coursesApi.getById(courseId),
-        threadsApi.list(courseId),
-        academicApi.getModules(courseId).catch(() => ({ modules: [], stats: {} })),
-        academicApi.getMeetings(courseId).catch(() => []),
-        academicApi.getAssignments(courseId).catch(() => []),
-        academicApi.getQuizzes(courseId).catch(() => []),
-        academicApi.getCourseAnnouncements(courseId).catch(() => []),
-        academicApi.getStudyGroups(courseId).catch(() => []),
-      ]);
-
+      const courseData = await coursesApi.getById(courseId);
       setCourse(courseData);
-      setThreadList(threadsData.data || []);
-      setModulesData(modulesRes);
-      setMeetings(meetingsRes || []);
-      setAssignments(assignmentsRes || []);
-      setQuizzes(quizzesRes || []);
-      setAnnouncements(announcementsRes || []);
-      setStudyGroups(groupsRes || []);
+    } catch (err) {
+      console.error("Gagal memuat detail kelas:", err);
+    }
+  }, [courseId]);
 
-      // Auto expand all modules
+  const loadModules = useCallback(async () => {
+    try {
+      const modulesRes = await academicApi.getModules(courseId).catch(() => ({ modules: [], stats: {} }));
+      setModulesData(modulesRes);
       const exp: Record<string, boolean> = {};
       modulesRes.modules?.forEach((m: any) => {
         exp[m.id] = true;
       });
       setExpandedModules(exp);
+      setLoadedTabs((prev) => ({ ...prev, modules: true }));
     } catch (err) {
-      console.error("Gagal memuat detail kelas:", err);
-    } finally {
-      setLoading(false);
+      console.error("Gagal memuat modul:", err);
     }
   }, [courseId]);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
-
-  useEffect(() => {
-    if (activeTab === "gradebook") {
-      academicApi.getGradebook(courseId).then(setGradebookData).catch(console.error);
+  const loadThreads = useCallback(async () => {
+    try {
+      const threadsData = await threadsApi.list(courseId).catch(() => ({ data: [] }));
+      setThreadList(threadsData.data || []);
+      setLoadedTabs((prev) => ({ ...prev, threads: true }));
+    } catch (err) {
+      console.error("Gagal memuat threads:", err);
     }
-  }, [activeTab, courseId]);
+  }, [courseId]);
+
+  const loadMeetings = useCallback(async () => {
+    try {
+      const meetingsRes = await academicApi.getMeetings(courseId).catch(() => []);
+      setMeetings(meetingsRes || []);
+      setLoadedTabs((prev) => ({ ...prev, virtual: true }));
+    } catch (err) {
+      console.error("Gagal memuat pertemuan virtual:", err);
+    }
+  }, [courseId]);
+
+  const loadAssignments = useCallback(async () => {
+    try {
+      const assignmentsRes = await academicApi.getAssignments(courseId).catch(() => []);
+      setAssignments(assignmentsRes || []);
+      setLoadedTabs((prev) => ({ ...prev, assignments: true }));
+    } catch (err) {
+      console.error("Gagal memuat tugas:", err);
+    }
+  }, [courseId]);
+
+  const loadQuizzes = useCallback(async () => {
+    try {
+      const quizzesRes = await academicApi.getQuizzes(courseId).catch(() => []);
+      setQuizzes(quizzesRes || []);
+      setLoadedTabs((prev) => ({ ...prev, quizzes: true }));
+    } catch (err) {
+      console.error("Gagal memuat kuis:", err);
+    }
+  }, [courseId]);
+
+  const loadGradebook = useCallback(async () => {
+    try {
+      const gbRes = await academicApi.getGradebook(courseId).catch(() => null);
+      setGradebookData(gbRes);
+      setLoadedTabs((prev) => ({ ...prev, gradebook: true }));
+    } catch (err) {
+      console.error("Gagal memuat gradebook:", err);
+    }
+  }, [courseId]);
+
+  const loadAnnouncementsAndGroups = useCallback(async () => {
+    try {
+      const [announcementsRes, groupsRes] = await Promise.all([
+        academicApi.getCourseAnnouncements(courseId).catch(() => []),
+        academicApi.getStudyGroups(courseId).catch(() => []),
+      ]);
+      setAnnouncements(announcementsRes || []);
+      setStudyGroups(groupsRes || []);
+      setLoadedTabs((prev) => ({ ...prev, announcements: true }));
+    } catch (err) {
+      console.error("Gagal memuat pengumuman dan grup:", err);
+    }
+  }, [courseId]);
+
+  const loadTabData = useCallback((tab: ActiveTab) => {
+    switch (tab) {
+      case "modules":
+        loadModules();
+        break;
+      case "threads":
+        loadThreads();
+        break;
+      case "virtual":
+        loadMeetings();
+        break;
+      case "assignments":
+        loadAssignments();
+        break;
+      case "quizzes":
+        loadQuizzes();
+        break;
+      case "gradebook":
+        loadGradebook();
+        break;
+      case "announcements":
+        loadAnnouncementsAndGroups();
+        break;
+    }
+  }, [loadModules, loadThreads, loadMeetings, loadAssignments, loadQuizzes, loadGradebook, loadAnnouncementsAndGroups]);
+
+  // Initial load: course shell + active tab only
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    loadCourseShell().finally(() => {
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [loadCourseShell]);
+
+  // When activeTab changes, load data for that tab if not yet loaded
+  useEffect(() => {
+    if (!loadedTabs[activeTab]) {
+      loadTabData(activeTab);
+    }
+  }, [activeTab, loadedTabs, loadTabData]);
 
   // Handler: Toggle Material Completion
   const handleToggleMaterial = async (materialId: string) => {
@@ -284,7 +363,7 @@ function CourseDetailContent() {
       setShowAddModuleModal(false);
       setNewModuleTitle("");
       setNewModuleDesc("");
-      loadAll();
+      loadModules();
     } catch (err: any) {
       alert(err.message || "Gagal membuat modul");
     }
@@ -304,7 +383,7 @@ function CourseDetailContent() {
       setShowAddMaterialModal(false);
       setNewMaterialTitle("");
       setNewMaterialUrl("");
-      loadAll();
+      loadModules();
     } catch (err: any) {
       alert(err.message || "Gagal menambah materi");
     }
@@ -327,7 +406,7 @@ function CourseDetailContent() {
       setNewMeetingUrl("");
       setNewMeetingDate("");
       setNewMeetingPasscode("");
-      loadAll();
+      loadMeetings();
     } catch (err: any) {
       alert(err.message || "Gagal menjadwalkan kelas virtual");
     }
@@ -347,7 +426,7 @@ function CourseDetailContent() {
       setNewAssignTitle("");
       setNewAssignDesc("");
       setNewAssignDue("");
-      loadAll();
+      loadAssignments();
     } catch (err: any) {
       alert(err.message || "Gagal membuat tugas");
     }
@@ -365,7 +444,7 @@ function CourseDetailContent() {
       });
       setSelectedAssignment(null);
       setSubmissionText("");
-      loadAll();
+      loadAssignments();
     } catch (err: any) {
       alert(err.message || "Gagal mengumpulkan tugas");
     } finally {
@@ -389,7 +468,7 @@ function CourseDetailContent() {
       });
 
       setQuizResult(res);
-      loadAll();
+      loadQuizzes();
     } catch (err: any) {
       alert(err.message || "Gagal mengirim jawaban kuis");
     } finally {
@@ -443,7 +522,7 @@ function CourseDetailContent() {
           points: 10,
         },
       ]);
-      loadAll();
+      loadQuizzes();
     } catch (err: any) {
       alert(err.message || "Gagal membuat kuis baru.");
     } finally {
@@ -465,7 +544,7 @@ function CourseDetailContent() {
       setShowAddAnnounceModal(false);
       setNewAnnounceTitle("");
       setNewAnnounceContent("");
-      loadAll();
+      loadAnnouncementsAndGroups();
     } catch (err: any) {
       alert(err.message || "Gagal mengirim pengumuman");
     }
@@ -2315,7 +2394,7 @@ function CourseDetailContent() {
                   feedback: gradeFeedbackInput,
                 });
                 setSelectedSubmissionToGrade(null);
-                loadAll();
+                loadAssignments();
               } catch (err: any) {
                 alert("Gagal menyimpan nilai: " + (err.message || "Kesalahan server"));
               } finally {

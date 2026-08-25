@@ -376,19 +376,25 @@ export class AcademicService {
       where: { courseId },
       include: {
         module: { select: { id: true, title: true } },
-        submissions: {
-          include: {
-            student: { select: { id: true, name: true, email: true } },
-          },
-        },
+        _count: { select: { submissions: true } },
+        submissions: studentId
+          ? {
+              where: { studentId },
+              include: {
+                student: { select: { id: true, name: true, email: true } },
+              },
+            }
+          : {
+              include: {
+                student: { select: { id: true, name: true, email: true } },
+              },
+            },
       },
       orderBy: { dueDate: 'asc' },
     });
 
     return assignments.map((a) => {
-      const mySubmission = studentId
-        ? a.submissions.find((s) => s.studentId === studentId) || null
-        : null;
+      const mySubmission = studentId && a.submissions.length > 0 ? a.submissions[0] : null;
 
       return {
         id: a.id,
@@ -398,7 +404,7 @@ export class AcademicService {
         dueDate: a.dueDate,
         maxScore: a.maxScore,
         weightPercentage: a.weightPercentage,
-        totalSubmissions: a.submissions.length,
+        totalSubmissions: a._count.submissions,
         mySubmission,
         submissions: a.submissions,
       };
@@ -631,28 +637,69 @@ export class AcademicService {
   async getCourseGradebook(courseId: string) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      include: {
+      select: {
+        id: true,
+        code: true,
+        name: true,
         enrollments: {
-          include: {
+          select: {
             student: { select: { id: true, name: true, email: true } },
           },
         },
         assignments: {
-          include: { submissions: true },
+          select: {
+            id: true,
+            title: true,
+            weightPercentage: true,
+            submissions: {
+              select: {
+                studentId: true,
+                score: true,
+              },
+            },
+          },
         },
         quizzes: {
-          include: { attempts: true },
+          select: {
+            id: true,
+            title: true,
+            attempts: {
+              select: {
+                studentId: true,
+                score: true,
+              },
+            },
+          },
         },
         threads: {
-          include: {
-            messages: true,
-            opinions: true,
+          select: {
+            id: true,
+            messages: {
+              where: { type: 'ANSWER' },
+              select: { authorId: true },
+            },
+            opinions: {
+              select: { authorId: true },
+            },
           },
         },
       },
     });
 
     if (!course) throw new NotFoundException('Kelas tidak ditemukan');
+
+    // Precompute lookup maps for fast O(1) aggregations
+    const answerCounts = new Map<string, number>();
+    const opinionCounts = new Map<string, number>();
+
+    for (const t of course.threads) {
+      for (const m of t.messages) {
+        answerCounts.set(m.authorId, (answerCounts.get(m.authorId) || 0) + 1);
+      }
+      for (const o of t.opinions) {
+        opinionCounts.set(o.authorId, (opinionCounts.get(o.authorId) || 0) + 1);
+      }
+    }
 
     const gradebookRows = course.enrollments.map((enr) => {
       const student = enr.student;
@@ -689,15 +736,9 @@ export class AcademicService {
           : 80;
 
       // 3. Forum Participation (Answers + Opinions)
-      const answersCount = course.threads.reduce((acc, t) => {
-        return acc + t.messages.filter((m) => m.authorId === student.id && m.type === 'ANSWER').length;
-      }, 0);
-
-      const opinionsCount = course.threads.reduce((acc, t) => {
-        return acc + t.opinions.filter((o) => o.authorId === student.id).length;
-      }, 0);
-
-      const forumScore = Math.min(100, (answersCount * 35) + (opinionsCount * 25) + 30);
+      const answersCount = answerCounts.get(student.id) || 0;
+      const opinionsCount = opinionCounts.get(student.id) || 0;
+      const forumScore = Math.min(100, answersCount * 35 + opinionsCount * 25 + 30);
 
       // 4. UTS & UAS Baseline Estimates
       const utsScore = Math.min(100, Math.round(totalAssignmentScore * 0.5 + totalQuizScore * 0.5));

@@ -7,6 +7,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { OpinionsService } from './opinions.service';
@@ -14,6 +15,8 @@ import { CreateOpinionDto } from './dto';
 import { CurrentUser } from '../common/decorators';
 import { AuditInterceptor } from '../common/interceptors';
 
+@ApiTags('Opinions')
+@ApiBearerAuth('JWT-auth')
 @Controller('threads/:threadId/opinions')
 @UseGuards(AuthGuard('jwt'))
 @UseInterceptors(AuditInterceptor)

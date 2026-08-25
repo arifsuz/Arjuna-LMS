@@ -59,4 +59,5 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
-*.swo
+# Documentation drafts & review logs
+docs/

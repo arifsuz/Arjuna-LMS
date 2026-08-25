@@ -107,13 +107,17 @@ Jika Anda lebih memilih memisahkan database terkelola Dokploy:
 
 ---
 
-## 3. Inisialisasi Data Awal (Database Seeding)
+## 3. Inisialisasi Data Awal (HANYA Saat Pertama Kali Setup / Cold Start)
 
-Setelah container berstatus **Running** (hijau) di Dokploy:
+> ⚠️ **PERHATIAN (REDEPLOY / UPDATE SISTEM)**: 
+> Ketika melakukan **redeploy** atau pembaruan kode, proses seeding **SUDAH TIDAK DIBUTUHKAN & JANGAN DIJALANKAN LAGI**. `backend/Dockerfile` sudah dikonfigurasi langsung menjalankan `node dist/main.js` tanpa menyentuh data database.
+
+Langkah ini **HANYA** dilakukan sekali saat database pertama kali dibuat kosong:
 
 1. Di panel Dokploy, buka service `backend` $\rightarrow$ Pilih tab **Terminal** / **Exec**.
-2. Jalankan perintah seeding:
+2. Jalankan perintah migrasi skema & seeding data awal (hanya jika database kosong):
    ```bash
+   npx prisma migrate deploy
    npx prisma db seed
    ```
 3. Data akun bawaan, kelas simulasi, silabus RPS, modul, tugas, kuis, dan data interaksi NLP akan terisi secara otomatis:

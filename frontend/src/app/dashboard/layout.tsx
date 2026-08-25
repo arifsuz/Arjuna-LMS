@@ -63,7 +63,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
     }
   }, [loading, user, router]);
 
-  // Load announcements for notification dropdown
+  // Load announcements for notification dropdown (fetch once per authenticated session)
   useEffect(() => {
     if (user) {
       academicApi
@@ -73,7 +73,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         })
         .catch(() => {});
     }
-  }, [user, pathname]);
+  }, [user]);
 
   // Close mobile menu & notifications on path change
   useEffect(() => {
@@ -380,7 +380,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-3">
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white p-1 shadow-md shadow-[#0A3266]/15 ring-1 ring-[#C9A05C]/40 overflow-hidden">
             <Image
-              src="/images/logo.jpg"
+              src="/images/logo_arjuna-net.jpeg"
               alt="Logo Arjuna LMS"
               width={36}
               height={36}
@@ -413,7 +413,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-3.5 border-b border-black/10 dark:border-[#C9A05C]/20 px-6 py-5">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-lg shadow-[#0A3266]/20 ring-1 ring-[#C9A05C]/40 overflow-hidden">
             <Image
-              src="/images/logo.jpg"
+              src="/images/logo_arjuna-net.jpeg"
               alt="Logo Resmi Arjuna LMS"
               width={40}
               height={40}

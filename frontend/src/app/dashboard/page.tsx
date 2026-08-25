@@ -118,7 +118,7 @@ export default function DashboardPage() {
           <div className="flex items-start gap-4 sm:gap-5 max-w-3xl">
             <div className="relative hidden sm:flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-lg shadow-[#0A3266]/20 ring-1 ring-[#C9A05C]/50 overflow-hidden">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo_arjuna-net.jpeg"
                 alt="Logo Arjuna LMS"
                 width={56}
                 height={56}

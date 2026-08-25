@@ -146,43 +146,55 @@ export class ThreadsService {
       }),
     );
 
-    // If user is LECTURER, include compliance info per thread
+    // If user is LECTURER or ADMIN, include compliance info per thread using batch query (O(1) DB queries)
     let threadsWithCompliance = processedThreads;
     if (userRole === Role.LECTURER || userRole === Role.ADMIN) {
-      const enrollments = await this.prisma.enrollment.findMany({
-        where: { courseId },
-        select: { studentId: true },
-      });
-      const enrolledStudentIds = enrollments.map((e) => e.studentId);
+      const lecturerThreadIds = processedThreads
+        .filter((t) => t.initiatorRole === Role.LECTURER)
+        .map((t) => t.id);
 
-      threadsWithCompliance = await Promise.all(
-        processedThreads.map(async (thread) => {
-          // Only check compliance for lecturer-initiated threads
-          if (thread.initiatorRole !== Role.LECTURER) {
-            return { ...thread, compliance: null };
-          }
-
-          const answers = await this.prisma.threadMessage.findMany({
-            where: {
-              threadId: thread.id,
-              type: MessageType.ANSWER,
-            },
-            select: { authorId: true },
-          });
-          const answeredIds = new Set(answers.map((a) => a.authorId));
-
-          return {
-            ...thread,
-            compliance: {
-              total: enrolledStudentIds.length,
-              answered: answeredIds.size,
-              pending: enrolledStudentIds.filter(
-                (id) => !answeredIds.has(id),
-              ).length,
-            },
-          };
+      const [enrollments, allAnswers] = await Promise.all([
+        this.prisma.enrollment.findMany({
+          where: { courseId },
+          select: { studentId: true },
         }),
-      );
+        lecturerThreadIds.length > 0
+          ? this.prisma.threadMessage.findMany({
+              where: {
+                threadId: { in: lecturerThreadIds },
+                type: MessageType.ANSWER,
+              },
+              select: { threadId: true, authorId: true },
+            })
+          : [],
+      ]);
+
+      const enrolledStudentIds = enrollments.map((e) => e.studentId);
+      const answersByThread = new Map<string, Set<string>>();
+      for (const ans of allAnswers) {
+        if (!answersByThread.has(ans.threadId)) {
+          answersByThread.set(ans.threadId, new Set());
+        }
+        answersByThread.get(ans.threadId)!.add(ans.authorId);
+      }
+
+      threadsWithCompliance = processedThreads.map((thread) => {
+        if (thread.initiatorRole !== Role.LECTURER) {
+          return { ...thread, compliance: null };
+        }
+
+        const answeredIds = answersByThread.get(thread.id) || new Set();
+        return {
+          ...thread,
+          compliance: {
+            total: enrolledStudentIds.length,
+            answered: answeredIds.size,
+            pending: enrolledStudentIds.filter(
+              (id) => !answeredIds.has(id),
+            ).length,
+          },
+        };
+      });
     }
 
     return {

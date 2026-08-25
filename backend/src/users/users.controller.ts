@@ -29,7 +29,10 @@ import {
 import { Roles, CurrentUser } from '../common/decorators';
 import { RolesGuard } from '../common/guards';
 import { Role } from '@prisma/client';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('Admin Users')
+@ApiBearerAuth('JWT-auth')
 @Controller('admin/users')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(Role.ADMIN)

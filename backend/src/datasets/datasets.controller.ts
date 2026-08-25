@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import type { Response } from 'express';
@@ -19,6 +20,8 @@ import { Roles, CurrentUser } from '../common/decorators';
 import { RolesGuard } from '../common/guards';
 import { AuditInterceptor } from '../common/interceptors';
 
+@ApiTags('Admin Datasets')
+@ApiBearerAuth('JWT-auth')
 @Controller('admin/dataset')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(Role.ADMIN)

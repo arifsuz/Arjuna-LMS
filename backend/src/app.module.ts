@@ -21,11 +21,11 @@ import { AppController } from './app.controller';
       envFilePath: '.env',
     }),
 
-    // Rate limiting: 60 requests per 60 seconds per IP
+    // Rate limiting: 120 requests per 60 seconds per IP (safe for multi-request page bursts)
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 60,
+        limit: Number(process.env.THROTTLE_LIMIT || 120),
       },
     ]),
 

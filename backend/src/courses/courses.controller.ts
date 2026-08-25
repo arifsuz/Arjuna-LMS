@@ -8,6 +8,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { CoursesService } from './courses.service';
@@ -17,6 +18,8 @@ import { RolesGuard } from '../common/guards';
 
 // ─── Admin endpoints ──────────────────────────────────────────────────
 
+@ApiTags('Admin Courses')
+@ApiBearerAuth('JWT-auth')
 @Controller('admin/courses')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AdminCoursesController {
@@ -73,6 +76,8 @@ export class AdminCoursesController {
 
 // ─── Authenticated user endpoints ─────────────────────────────────────
 
+@ApiTags('Courses')
+@ApiBearerAuth('JWT-auth')
 @Controller('courses')
 @UseGuards(AuthGuard('jwt'))
 export class CoursesController {

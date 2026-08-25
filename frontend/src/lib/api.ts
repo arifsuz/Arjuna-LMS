@@ -40,9 +40,10 @@ export function getApiBaseUrl(): string {
 interface ApiOptions extends RequestInit {
   json?: any;
   _skipRefresh?: boolean; // Internal flag to prevent infinite refresh loops
+  timeoutMs?: number;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
@@ -110,13 +111,13 @@ function redirectToLogin() {
   }
 }
 
-// ─── Core Request Function with Auto-Refresh ─────────────────────────
+// ─── Core Request Function with Auto-Refresh & Timeout ───────────────
 
 async function request<T = any>(
   endpoint: string,
   options: ApiOptions = {}
 ): Promise<T> {
-  const { json, headers: customHeaders, _skipRefresh, ...rest } = options;
+  const { json, headers: customHeaders, _skipRefresh, timeoutMs = 15000, signal: customSignal, ...rest } = options;
 
   const headers: Record<string, string> = {
     ...(customHeaders as Record<string, string>),
@@ -127,72 +128,89 @@ async function request<T = any>(
   }
 
   const apiBase = getApiBaseUrl();
-  const res = await fetch(`${apiBase}${endpoint}`, {
-    ...rest,
-    headers,
-    credentials: "include", // Send cookies (JWT httpOnly)
-    body: json ? JSON.stringify(json) : options.body,
-  });
 
-  // ── Handle 401: attempt silent token refresh then retry ──
-  if (res.status === 401 && !_skipRefresh) {
-    // Don't try to refresh on auth endpoints themselves
-    const isAuthEndpoint =
-      endpoint === "/auth/refresh" || endpoint === "/auth/login";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const signal = customSignal || controller.signal;
 
-    if (!isAuthEndpoint) {
-      try {
-        await attemptTokenRefresh();
+  try {
+    const res = await fetch(`${apiBase}${endpoint}`, {
+      ...rest,
+      headers,
+      signal,
+      credentials: "include", // Send cookies (JWT httpOnly)
+      body: json ? JSON.stringify(json) : options.body,
+    });
 
-        // Retry the original request with the new token
-        const retryRes = await fetch(`${apiBase}${endpoint}`, {
-          ...rest,
-          headers,
-          credentials: "include",
-          body: json ? JSON.stringify(json) : options.body,
-        });
+    // ── Handle 401: attempt silent token refresh then retry ──
+    if (res.status === 401 && !_skipRefresh) {
+      // Don't try to refresh on auth endpoints themselves
+      const isAuthEndpoint =
+        endpoint === "/auth/refresh" || endpoint === "/auth/login";
 
-        if (!retryRes.ok) {
-          const errorData = await retryRes.json().catch(() => ({}));
-          // If still 401 after refresh, redirect to login
-          if (retryRes.status === 401) {
-            redirectToLogin();
+      if (!isAuthEndpoint) {
+        try {
+          await attemptTokenRefresh();
+
+          // Retry the original request with the new token
+          const retryRes = await fetch(`${apiBase}${endpoint}`, {
+            ...rest,
+            headers,
+            signal,
+            credentials: "include",
+            body: json ? JSON.stringify(json) : options.body,
+          });
+
+          if (!retryRes.ok) {
+            const errorData = await retryRes.json().catch(() => ({}));
+            // If still 401 after refresh, redirect to login
+            if (retryRes.status === 401) {
+              redirectToLogin();
+            }
+            throw new ApiError(
+              retryRes.status,
+              errorData.message || `API Error: ${retryRes.status}`,
+              errorData
+            );
           }
-          throw new ApiError(
-            retryRes.status,
-            errorData.message || `API Error: ${retryRes.status}`,
-            errorData
-          );
-        }
 
-        if (retryRes.status === 204) {
-          return {} as T;
-        }
+          if (retryRes.status === 204) {
+            return {} as T;
+          }
 
-        return retryRes.json();
-      } catch (refreshError) {
-        // Refresh failed — session is truly expired, redirect to login
-        redirectToLogin();
-        throw new ApiError(401, "Session expired. Please login again.");
+          return retryRes.json();
+        } catch (refreshError) {
+          if (refreshError instanceof ApiError) throw refreshError;
+          // Refresh failed — session is truly expired, redirect to login
+          redirectToLogin();
+          throw new ApiError(401, "Session expired. Please login again.");
+        }
       }
     }
-  }
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new ApiError(
-      res.status,
-      errorData.message || `API Error: ${res.status}`,
-      errorData
-    );
-  }
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new ApiError(
+        res.status,
+        errorData.message || `API Error: ${res.status}`,
+        errorData
+      );
+    }
 
-  // Handle 204 No Content
-  if (res.status === 204) {
-    return {} as T;
-  }
+    // Handle 204 No Content
+    if (res.status === 204) {
+      return {} as T;
+    }
 
-  return res.json();
+    return res.json();
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new ApiError(504, "Koneksi ke server timeout (15s). Silakan coba lagi.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────
@@ -512,4 +530,3 @@ export interface Message {
   } | null;
 }
 
-export { ApiError };

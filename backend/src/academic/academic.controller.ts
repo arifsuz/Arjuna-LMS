@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AcademicService } from './academic.service';
 import { CurrentUser, Roles } from '../common/decorators';
@@ -26,6 +27,8 @@ import {
   UpdateCourseSyllabusDto,
 } from './dto';
 
+@ApiTags('Academic LMS')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 export class AcademicController {

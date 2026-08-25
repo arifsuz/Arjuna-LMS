@@ -9,18 +9,22 @@ import {
   UseGuards,
   Get,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto';
 import { CurrentUser } from '../common/decorators';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login user dengan email & password' })
+  @ApiResponse({ status: 200, description: 'Login berhasil, token dan session cookie diterbitkan' })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,

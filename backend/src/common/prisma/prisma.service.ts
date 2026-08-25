@@ -15,7 +15,12 @@ export class PrismaService
         'DATABASE_URL environment variable is required. Set it in .env (local) or Dokploy Environment (production).',
       );
     }
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({
+      connectionString,
+      max: Number(process.env.DB_POOL_MAX || 25),
+      idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT || 10000),
+      connectionTimeoutMillis: Number(process.env.DB_POOL_CONN_TIMEOUT || 5000),
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
   }

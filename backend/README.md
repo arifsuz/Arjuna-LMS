@@ -201,4 +201,30 @@ npm run start:dev
 ```
 
 Server backend akan berjalan di `http://localhost:4000`.
+Dokumentasi interaktif OpenAPI Swagger dapat diakses di `http://localhost:4000/api/docs`.
+
+---
+
+## 8. Dokumentasi OpenAPI / Swagger
+
+Backend mengintegrasikan Swagger UI interaktif yang otomatis menghasilkan dokumentasi endpoint REST API:
+
+- **Endpoint Swagger UI**: `http://localhost:4000/api/docs`
+- **Fitur OpenAPI**:
+  - **Authorize Button**: Mendukung otentikasi JWT Bearer token dan Session Cookie `httpOnly`.
+  - **Modular Controller Tags**: Dikelompokkan rapi berdasarkan domain fungsional (`Auth`, `Courses`, `Admin Courses`, `Threads`, `Opinions`, `Academic LMS`, `Admin Datasets`, `Admin Users`, `System Health`).
+  - **Payload Schema Validation**: Skema DTO terintegrasi langsung dengan `class-validator` dan `class-transformer`.
+
+---
+
+## 9. Konfigurasi Kinerja & Connection Pooling
+
+Untuk mendukung beban konkurensi tinggi:
+- **Connection Pool**: Dikonfigurasi melalui `pg.Pool` dengan `max: 25`, `idleTimeoutMillis: 10000`, dan `connectionTimeoutMillis: 5000`.
+- **Environment Variables Tambahan**:
+  - `DB_POOL_MAX` (Default: 25)
+  - `DB_POOL_IDLE_TIMEOUT` (Default: 10000)
+  - `DB_POOL_CONN_TIMEOUT` (Default: 5000)
+  - `THROTTLE_LIMIT` (Default: 120 requests/minute)
+  - `THROTTLE_TTL` (Default: 60 seconds)
 

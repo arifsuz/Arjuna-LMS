@@ -30,7 +30,7 @@ export default function HomePage() {
           <Link href="/" className="flex items-center gap-3.5 group">
             <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-md shadow-[#0A3266]/15 ring-2 ring-[#C9A05C]/50 transition-transform group-hover:scale-105">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo_arjuna-net.jpeg"
                 alt="Logo Arjuna LMS"
                 width={40}
                 height={40}
@@ -463,7 +463,7 @@ export default function HomePage() {
             <div className="flex items-center gap-3.5">
               <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-md shadow-[#0A3266]/15 ring-1 ring-[#C9A05C]/40">
                 <Image
-                  src="/images/logo.jpg"
+                  src="/images/logo_arjuna-net.jpeg"
                   alt="Logo Arjuna LMS"
                   width={36}
                   height={36}

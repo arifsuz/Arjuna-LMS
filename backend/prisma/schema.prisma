@@ -122,6 +122,8 @@ model Enrollment {
   student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, studentId])
+  @@index([courseId])
+  @@index([studentId])
   @@map("enrollments")
 }
 
@@ -140,6 +142,7 @@ model CourseModule {
   assignments Assignment[]
   quizzes     Quiz[]
 
+  @@index([courseId])
   @@map("course_modules")
 }
 
@@ -157,6 +160,7 @@ model CourseMaterial {
   module          CourseModule       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   progress        MaterialProgress[]
 
+  @@index([moduleId])
   @@map("course_materials")
 }
 
@@ -188,6 +192,7 @@ model VirtualMeeting {
 
   course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
+  @@index([courseId])
   @@map("virtual_meetings")
 }
 
@@ -204,6 +209,8 @@ model Announcement {
   course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id])
 
+  @@index([courseId])
+  @@index([authorId])
   @@map("announcements")
 }
 
@@ -217,6 +224,7 @@ model StudyGroup {
   course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   members     GroupMember[]
 
+  @@index([courseId])
   @@map("study_groups")
 }
 
@@ -250,6 +258,8 @@ model Assignment {
   module           CourseModule?          @relation(fields: [moduleId], references: [id])
   submissions      AssignmentSubmission[]
 
+  @@index([courseId])
+  @@index([moduleId])
   @@map("assignments")
 }
 
@@ -269,6 +279,8 @@ model AssignmentSubmission {
   student              User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
   @@map("assignment_submissions")
 }
 
@@ -290,6 +302,8 @@ model Quiz {
   questions        QuizQuestion[]
   attempts         QuizAttempt[]
 
+  @@index([courseId])
+  @@index([moduleId])
   @@map("quizzes")
 }
 
@@ -319,6 +333,8 @@ model QuizAttempt {
   quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@index([quizId, studentId])
+  @@index([studentId])
   @@map("quiz_attempts")
 }
 

@@ -8,12 +8,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { ThreadsService } from './threads.service';
 import { CreateThreadDto, CreateMessageDto, QueryThreadsDto } from './dto';
 import { CurrentUser } from '../common/decorators';
 
+@ApiTags('Threads')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 export class ThreadsController {

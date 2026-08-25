@@ -93,7 +93,7 @@ export default function LoginPage() {
         <header className="mb-5 text-center">
           <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-3xl bg-white/95 dark:bg-[#061a3b]/90 p-2 shadow-2xl shadow-black/15 dark:shadow-black/60 ring-2 ring-[#C9A05C]/60 dark:ring-[#C9A05C]/80 backdrop-blur-xl transition-all">
             <Image
-              src="/images/logo.jpg"
+              src="/images/logo_arjuna-net.jpeg"
               alt="Logo Arjuna LMS"
               width={72}
               height={72}

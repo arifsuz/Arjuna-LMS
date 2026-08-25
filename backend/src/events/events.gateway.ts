@@ -38,10 +38,20 @@ export class EventsGateway
   async handleConnection(client: Socket) {
     try {
       // Extract token from query or auth header or cookie
-      const token =
+      let token =
         client.handshake.auth?.token ||
         client.handshake.headers?.authorization?.replace('Bearer ', '') ||
         client.handshake.query?.token;
+
+      if (!token && client.handshake.headers?.cookie) {
+        const rawCookies = client.handshake.headers.cookie;
+        const cookieMap = rawCookies.split(';').reduce((acc: Record<string, string>, c: string) => {
+          const [k, v] = c.trim().split('=');
+          if (k && v) acc[k] = decodeURIComponent(v);
+          return acc;
+        }, {});
+        token = cookieMap['access_token'];
+      }
 
       if (token) {
         const payload = await this.jwtService.verifyAsync(token as string, {
