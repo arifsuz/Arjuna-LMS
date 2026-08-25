@@ -1,4 +1,4 @@
-# ARJUNA LMS — Backend API & Real-Time Engine
+# ARJUNA LMS - Backend API & Real-Time Engine
 
 <p align="center">
   <img src="https://img.shields.io/badge/Backend-NestJS%2011-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS 11" />

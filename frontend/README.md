@@ -1,4 +1,4 @@
-# ARJUNA LMS — Frontend Web Client
+# ARJUNA LMS - Frontend Web Client
 
 <p align="center">
   <img src="https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 16" />

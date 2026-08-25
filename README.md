@@ -1,4 +1,4 @@
-# ARJUNA LMS — Integrated Learning Management System & Research Data Engine
+# ARJUNA LMS - Integrated Learning Management System & Research Data Engine
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-ARJUNA--LMS-0A3266?style=for-the-badge&logo=codeforces&logoColor=white" alt="Platform Badge" />
