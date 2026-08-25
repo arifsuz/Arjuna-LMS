@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -23,8 +23,14 @@ async function bootstrap() {
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix with root bypass
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: '', method: RequestMethod.GET },
+      { path: '/', method: RequestMethod.GET },
+      { path: 'health', method: RequestMethod.GET },
+    ],
+  });
 
   // Security headers & cookies
   app.use(
@@ -66,7 +72,7 @@ async function bootstrap() {
     .setDescription(
       'Dokumentasi API lengkap untuk Platform LMS Kampus Profesional & Pengumpulan Dataset Interaksi ARJUNA-Net.',
     )
-    .setVersion('1.0.0')
+    .setVersion('2.1.0')
     .addBearerAuth(
       {
         type: 'http',
@@ -98,7 +104,20 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT', 4000);
   await app.listen(port, '0.0.0.0');
-  console.log(`[ARJUNA LMS] Backend running on http://localhost:${port}`);
-  console.log(`[ARJUNA LMS] Swagger API Docs available on http://localhost:${port}/api/docs`);
+
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+  const backendUrl = configService.get<string>(
+    'BACKEND_URL',
+    isProduction ? 'https://arjuna-api.sandiwarno.tech' : `http://localhost:${port}`,
+  );
+
+  console.log(`\n===========================================================`);
+  console.log(`🚀 [ARJUNA LMS] Backend Engine v2.1.0 Started Successfully`);
+  console.log(`🌍 Environment : ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+  console.log(`📡 Root URL    : ${backendUrl}`);
+  console.log(`📡 API Base    : ${backendUrl}/api`);
+  console.log(`📖 Swagger API : ${backendUrl}/api/docs`);
+  console.log(`🟢 Health Check: ${backendUrl}/api/health`);
+  console.log(`===========================================================\n`);
 }
 bootstrap();
