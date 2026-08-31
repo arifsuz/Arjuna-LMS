@@ -219,7 +219,7 @@ Laporan audit pengujian unit resmi dapat diakses pada dokumen:
 
 ```bash
 # 1. Clone Repositori
-git clone https://github.com/arifsuz/Arjuna-LMS.git
+git clone https://github.com/ariftsx/Arjuna-LMS.git
 cd Arjuna-LMS
 
 # 2. Jalankan PostgreSQL & Redis menggunakan Docker
